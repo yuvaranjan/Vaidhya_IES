@@ -86,11 +86,11 @@ export function Sidebar({
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 bg-background/40">
         <p className="px-3 text-[11px] font-bold uppercase tracking-[0.16em] text-accent mb-3">Navigation</p>
-        {items.map((item) => {
+        {items.map((item, index) => {
           const isActive = checkActive(item.href);
           return (
             <Link
-              key={item.href}
+              key={`${item.href}-${index}`}
               href={item.href}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all group ${
                 isActive 
