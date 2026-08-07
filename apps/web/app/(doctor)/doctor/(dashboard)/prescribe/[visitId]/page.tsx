@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
-import { getMockVisit } from "@/lib/mockQueue";
+import { getVisit } from "@/lib/queue";
 import { PrescriptionClient } from "./PrescriptionClient";
 
 export default async function PrescribePage({
@@ -15,7 +15,7 @@ export default async function PrescribePage({
     redirect("/doctor/login");
   }
 
-  const visit = getMockVisit(visitId);
+  const visit = await getVisit(visitId);
   if (!visit || visit.status !== "in_consult") {
     // If it's not active or already completed, bounce them back to queue
     redirect("/doctor/queue");

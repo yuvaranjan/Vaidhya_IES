@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
-import { getMockVisit } from "@/lib/mockQueue";
+import { getVisit } from "@/lib/queue";
 import { ConsultClient } from "./ConsultClient";
 import { SpecialistPanel } from "@/components/SpecialistPanel";
 
@@ -16,7 +16,7 @@ export default async function DoctorConsultPage({
     redirect("/doctor/login");
   }
 
-  const visit = getMockVisit(visitId);
+  const visit = await getVisit(visitId);
   if (!visit) {
     notFound();
   }

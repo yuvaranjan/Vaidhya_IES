@@ -20,6 +20,8 @@
  */
 import { NextResponse } from "next/server";
 
+import { db } from "@/lib/db";
+
 const systemPrompt = `
 You are a virtual specialist advising a general MBBS doctor in a rural Indian telemedicine setting. 
 You do not have direct patient contact.
@@ -58,22 +60,20 @@ export async function POST(req: Request) {
     const { visit_id } = await req.json();
 
     let clinicalContext = "Patient complains of chest pain and shortness of breath. HR 110, BP 140/90.";
-    try {
-      // Dynamically import to avoid crashing if SUPABASE_URL is missing
-      const { db } = await import("@/lib/db");
-      if (db) {
-        const { data, error } = await db
-          .from("diagnostic_reports")
-          .select("transcript, vitals_snapshot, summary_text")
-          .eq("visit_id", visit_id)
-          .single();
-          
-        if (data) {
-          clinicalContext = `Summary: ${data.summary_text}\nVitals: ${data.vitals_snapshot}\nTranscript: ${data.transcript}`;
-        }
+    // `db` is null when Supabase is unconfigured, so a static import is safe —
+    // the dynamic one could not resolve its own path and failed the typecheck.
+    if (db) {
+      const { data } = await db
+        .from("diagnostic_reports")
+        .select("transcript, vitals_snapshot, summary_text")
+        .eq("visit_id", visit_id)
+        .maybeSingle();
+
+      if (data) {
+        clinicalContext = `Summary: ${data.summary_text}\nVitals: ${JSON.stringify(data.vitals_snapshot)}\nTranscript: ${JSON.stringify(data.transcript)}`;
+      } else {
+        console.warn("[specialist] no report for visit, using mock clinical context.");
       }
-    } catch (dbError) {
-      console.warn("Supabase not available or visit not found, using mock clinical context.");
     }
 
     const apiKey = process.env.GROQ_API_KEY;

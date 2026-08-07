@@ -1,8 +1,10 @@
 "use server";
 
-import { getSession, DEMO_OTP } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
+import { redirect } from "next/navigation";
+
+import { DEMO_OTP, getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 export async function loginPatient(prevState: any, formData: FormData) {
   const phone = formData.get("phone")?.toString()?.trim();
@@ -17,12 +19,28 @@ export async function loginPatient(prevState: any, formData: FormData) {
   }
 
   const session = await getSession();
-
-  // In the demo, we generate a mock visit ID and use a hardcoded patient ID
   session.role = "patient";
-  session.patientId = "9000000001"; // Demo patient ID from the README/PROGRESS
-  session.name = "Demo Patient";
-  session.visitId = `visit_${randomUUID()}`;
+  session.visitId = `visit_${randomUUID().slice(0, 8)}`;
+
+  if (db) {
+    // Look the patient up by phone. `patient_id` is a foreign key on visits,
+    // prescriptions and everything downstream — the phone number is not it.
+    const { data: patient } = await db
+      .from("patients")
+      .select("patient_id, name")
+      .eq("phone_number", phone)
+      .maybeSingle();
+
+    if (!patient) {
+      return { error: "No patient registered on that number." };
+    }
+
+    session.patientId = patient.patient_id;
+    session.name = patient.name;
+  } else {
+    session.patientId = "pat_001";
+    session.name = "Anjali Menon";
+  }
 
   await session.save();
 

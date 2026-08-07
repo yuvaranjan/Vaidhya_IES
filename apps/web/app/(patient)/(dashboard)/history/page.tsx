@@ -1,61 +1,108 @@
-import { 
-  Search, 
-  FileText, 
-  Activity, 
-  Calendar, 
-  UserCheck, 
-  Download, 
-  Filter, 
+import Link from "next/link";
+import {
+  Search,
+  Calendar,
+  UserCheck,
+  Download,
   Eye,
-  Clock,
-  Sparkles
 } from "lucide-react";
 
-export default function MedicalHistoryPage() {
-  const mockHistory = [
-    {
-      id: "v_101",
-      type: "medical",
-      typeLabel: "Medical Visit",
-      date: "2026-07-28",
-      doctor: "Dr. Eleanor Vance, MD",
-      complaint: "Persistent dry cough and mild evening fever.",
-      status: "Completed",
-      diagnosis: "Upper Respiratory Infection (Mild)",
-      medsCount: 2,
-      badgeBg: "bg-[#E5F5F3]",
-      badgeText: "text-[#14736A]",
-      badgeBorder: "border-[#C2E8E4]",
-    },
-    {
-      id: "v_092",
-      type: "lab",
-      typeLabel: "Lab Result",
-      date: "2026-02-14",
-      doctor: "Central Diagnostics Lab",
-      complaint: "Comprehensive Annual Metabolic & Blood Panel.",
-      status: "Verified",
-      diagnosis: "All lipid & glucose markers optimal",
-      medsCount: 0,
-      badgeBg: "bg-[#EEF3FB]",
-      badgeText: "text-[#315A94]",
-      badgeBorder: "border-[#D1E0F5]",
-    },
-    {
-      id: "v_085",
-      type: "care_plan",
-      typeLabel: "Care Plan",
-      date: "2026-01-10",
-      doctor: "Dr. Marcus Brody",
-      complaint: "Post-consultation hypertension management plan.",
-      status: "Active",
-      diagnosis: "Stage 1 Essential Hypertension (Monitored)",
-      medsCount: 1,
-      badgeBg: "bg-[#F4F0FB]",
-      badgeText: "text-[#7050A8]",
-      badgeBorder: "border-[#E4D9F5]",
-    }
-  ];
+import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+type VisitRow = {
+  visit_id: string;
+  status: string;
+  created_at: string;
+  doctors: { name: string } | null;
+  diagnostic_reports: Array<{
+    chief_complaint: string | null;
+    summary_text: string | null;
+    urgency_tier: { tier?: string; flag_count?: number } | null;
+  }>;
+  prescriptions: Array<{
+    prescription_id: string;
+    medications: unknown[];
+  }>;
+};
+
+type Record = {
+  id: string;
+  typeLabel: string;
+  date: string;
+  doctor: string;
+  complaint: string;
+  diagnosis: string;
+  medsCount: number;
+  prescriptionId: string | null;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+};
+
+// Urgency drives the badge colour, per the frozen theme: green routine,
+// amber elevated, red urgent. Nothing else in this table is colour-coded.
+const BADGE = {
+  routine: {
+    badgeBg: "bg-[#E5F5F3]",
+    badgeText: "text-[#14736A]",
+    badgeBorder: "border-[#C2E8E4]",
+  },
+  elevated: {
+    badgeBg: "bg-[#FDF3E4]",
+    badgeText: "text-[#9A6414]",
+    badgeBorder: "border-[#F2DFBF]",
+  },
+  urgent: {
+    badgeBg: "bg-destructive/10",
+    badgeText: "text-destructive",
+    badgeBorder: "border-destructive/20",
+  },
+} as const;
+
+function toRecord(v: VisitRow): Record {
+  const report = v.diagnostic_reports?.[v.diagnostic_reports.length - 1];
+  const rx = v.prescriptions?.[v.prescriptions.length - 1];
+  const tier = (report?.urgency_tier?.tier ?? "routine") as keyof typeof BADGE;
+
+  return {
+    id: v.visit_id,
+    typeLabel: tier === "routine" ? "Medical Visit" : `${tier} Visit`,
+    date: v.created_at,
+    doctor: v.doctors?.name ?? "Vaidhya Edge Clinic",
+    complaint: report?.chief_complaint ?? "Consultation",
+    diagnosis: report?.summary_text?.split(". ")[0] ?? "No report filed",
+    medsCount: Array.isArray(rx?.medications) ? rx.medications.length : 0,
+    prescriptionId: rx?.prescription_id ?? null,
+    ...(BADGE[tier] ?? BADGE.routine),
+  };
+}
+
+async function loadHistory(patientId: string | undefined): Promise<Record[]> {
+  if (!db || !patientId) return [];
+
+  const { data, error } = await db
+    .from("visits")
+    .select(
+      "visit_id, status, created_at, doctors(name), " +
+        "diagnostic_reports(chief_complaint, summary_text, urgency_tier), " +
+        "prescriptions(prescription_id, medications)",
+    )
+    .eq("patient_id", patientId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[history] read failed:", error.message);
+    return [];
+  }
+  return (data as unknown as VisitRow[]).map(toRecord);
+}
+
+export default async function MedicalHistoryPage() {
+  const session = await getSession();
+  const history = await loadHistory(session.patientId);
 
   return (
     <div className="w-full max-w-6xl mx-auto py-8 px-5 sm:px-8 space-y-7">
@@ -78,7 +125,7 @@ export default function MedicalHistoryPage() {
         {/* Segmented Control Filter */}
         <div className="inline-flex rounded-lg bg-secondary p-1 border border-border">
           <button className="px-3.5 py-1.5 rounded-md bg-card text-primary font-bold text-xs shadow-sm">
-            All Records (3)
+            All Records ({history.length})
           </button>
           <button className="px-3.5 py-1.5 rounded-md text-muted-foreground hover:text-foreground font-semibold text-xs transition-colors">
             Medical Visits
@@ -113,9 +160,16 @@ export default function MedicalHistoryPage() {
 
         {/* Table Body */}
         <div className="divide-y divide-border">
-          {mockHistory.map((record) => (
-            <div 
-              key={record.id} 
+          {history.length === 0 && (
+            <div className="p-10 text-center text-xs font-semibold text-muted-foreground">
+              No visits on record yet. Completed consultations appear here with
+              their diagnostic report and prescription.
+            </div>
+          )}
+
+          {history.map((record) => (
+            <div
+              key={record.id}
               className="grid grid-cols-12 p-5 px-6 items-center hover:bg-secondary/30 transition-colors group"
             >
               {/* Type & Date */}
@@ -140,15 +194,31 @@ export default function MedicalHistoryPage() {
                   </span>
                   <span>&bull;</span>
                   <span>Diagnosis: <strong className="text-foreground font-semibold">{record.diagnosis}</strong></span>
+                  {record.medsCount > 0 && (
+                    <>
+                      <span>&bull;</span>
+                      <span>{record.medsCount} medication{record.medsCount === 1 ? "" : "s"}</span>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Actions */}
               <div className="col-span-3 sm:col-span-3 flex items-center justify-end gap-2">
-                <button className="px-3 h-8 rounded-lg bg-background border border-border text-foreground text-xs font-bold hover:bg-secondary transition-colors flex items-center gap-1.5 shadow-sm">
-                  <Eye className="w-3.5 h-3.5 text-accent" />
-                  <span>Report</span>
-                </button>
+                {record.prescriptionId ? (
+                  <Link
+                    href={`/prescription?id=${record.prescriptionId}`}
+                    className="px-3 h-8 rounded-lg bg-background border border-border text-foreground text-xs font-bold hover:bg-secondary transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-accent" />
+                    <span>Report</span>
+                  </Link>
+                ) : (
+                  <span className="px-3 h-8 rounded-lg bg-background border border-border text-muted-foreground text-xs font-bold flex items-center gap-1.5 shadow-sm opacity-60">
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Report</span>
+                  </span>
+                )}
                 <button className="p-2 rounded-lg bg-background border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm" title="Download Record">
                   <Download className="w-3.5 h-3.5" />
                 </button>

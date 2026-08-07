@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getMqttClient, subscribeJson, publishJson, disconnectMqtt } from "@/lib/mqtt";
 import { topics, createDedupe } from "@vaidhya/shared";
-import type { MockVisit } from "@/lib/mockQueue";
+import type { Visit as MockVisit } from "@/lib/queue";
 import type { PatientToDoctorMessage, DoctorToPatientMessage } from "@vaidhya/shared";
 import { 
   FileText, 
@@ -34,6 +34,8 @@ export function ConsultClient({
 
   useEffect(() => {
     const client = getMqttClient(doctorId);
+    if (!client) return;
+
     const isDuplicate = createDedupe(200);
 
     const unsubscribe = subscribeJson<PatientToDoctorMessage>(
@@ -63,7 +65,19 @@ export function ConsultClient({
     };
 
     const client = getMqttClient(doctorId);
-    publishJson(client, topics.doctorToPatient(visit.visitId), msg);
+    if (client) {
+      publishJson(client, topics.doctorToPatient(visit.visitId), msg);
+    } else {
+      // Single-laptop fallback: hit the edge service's HTTP consult endpoint
+      // directly. Same relay, same voicebot, no broker in the middle.
+      const base =
+        process.env.NEXT_PUBLIC_EDGE_AI_URL ?? "http://localhost:8000";
+      void fetch(`${base}/consult/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visit_id: visit.visitId, question_en: msg.text }),
+      }).catch((err) => console.error("[consult] HTTP fallback failed", err));
+    }
 
     setMessages((prev) => [...prev, msg]);
     setInputValue("");

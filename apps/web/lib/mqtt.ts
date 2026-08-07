@@ -21,11 +21,16 @@ let client: MqttClient | null = null;
  * makes the broker queue QoS-1 messages across a disconnect — that is most of
  * the "not lost" guarantee, bought with configuration instead of code.
  */
-export function getMqttClient(doctorId: string): MqttClient {
+export function getMqttClient(doctorId: string): MqttClient | null {
   if (client) return client;
 
   const url = process.env.NEXT_PUBLIC_MQTT_URL;
-  if (!url) throw new Error("NEXT_PUBLIC_MQTT_URL is not set");
+  // No broker configured is a normal state — the consult screen falls back to
+  // polling. Throwing here took the whole doctor queue down with it.
+  if (!url || url.includes("your-cluster")) {
+    console.warn("[mqtt] NEXT_PUBLIC_MQTT_URL not set — live consult disabled");
+    return null;
+  }
 
   client = mqtt.connect(url, {
     clientId: clientId.doctor(doctorId),

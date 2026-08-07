@@ -14,9 +14,13 @@ export async function GET(request: NextRequest) {
 
     if (db) {
       try {
+        // The patient hangs off the visit, not off the prescription — there is
+        // no prescriptions→patients foreign key. Embedding one made PostgREST
+        // reject the query, and the fallback below quietly served mock rows
+        // stamped with the real prescription id.
         let query = db
           .from("pharmacy_queue")
-          .select("*, prescriptions(*, patients(*), doctors(*))");
+          .select("*, prescriptions(*, doctors(*), visits(patient_id, patients(*)))");
 
         if (pharmacyId) {
           query = query.eq("pharmacy_id", pharmacyId);
@@ -24,8 +28,14 @@ export async function GET(request: NextRequest) {
 
         const { data, error } = await query.order("created_at", { ascending: false });
 
+        if (error) {
+          console.error("[pharmacy queue] read failed:", error.message);
+        }
+
         if (!error && data && data.length > 0) {
-          const formatted = data.map((item) => ({
+          const formatted = data.map((item) => {
+            const patient = item.prescriptions?.visits?.patients;
+            return {
             entry_id: item.entry_id,
             pharmacy_id: item.pharmacy_id,
             prescription_id: item.prescription_id,
@@ -36,20 +46,21 @@ export async function GET(request: NextRequest) {
                   prescription_id: item.prescriptions.prescription_id,
                   visit_id: item.prescriptions.visit_id,
                   doctor_id: item.prescriptions.doctor_id,
-                  doctor_name: item.prescriptions.doctors?.name || "Dr. Priya Varghese",
-                  doctor_specialty: item.prescriptions.doctors?.specialty_general || "MBBS",
-                  patient_id: item.prescriptions.patient_id,
-                  patient_name: item.prescriptions.patients?.name || "Anjali Menon",
-                  patient_age: item.prescriptions.patients?.age || 34,
-                  patient_sex: item.prescriptions.patients?.sex || "F",
-                  patient_phone: item.prescriptions.patients?.phone_number || "9000000001",
+                  doctor_name: item.prescriptions.doctors?.name ?? "Unknown doctor",
+                  doctor_specialty: item.prescriptions.doctors?.specialty_general ?? "MBBS",
+                  patient_id: item.prescriptions.visits?.patient_id,
+                  patient_name: patient?.name ?? "Unknown patient",
+                  patient_age: patient?.age ?? null,
+                  patient_sex: patient?.sex ?? null,
+                  patient_phone: patient?.phone_number ?? null,
                   issued_at: item.prescriptions.issued_at,
-                  follow_up_requested: item.prescriptions.follow_up_requested ?? true,
+                  follow_up_requested: item.prescriptions.follow_up_requested ?? false,
                   pharmacy_id: item.prescriptions.pharmacy_id,
                   medications: item.prescriptions.medications || [],
                 }
               : undefined,
-          }));
+            };
+          });
           return NextResponse.json(formatted);
         }
       } catch (err) {

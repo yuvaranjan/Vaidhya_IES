@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { claimVisit } from "./actions";
 import { getMqttClient, subscribeJson, disconnectMqtt } from "@/lib/mqtt";
-import type { MockVisit } from "@/lib/mockQueue";
+import type { Visit as MockVisit } from "@/lib/queue";
 import { 
   Users, 
   Clock, 
@@ -23,7 +23,10 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
 
   useEffect(() => {
     const client = getMqttClient(doctorId);
-    
+    // No broker configured — the queue still renders from its server fetch,
+    // it just does not update live.
+    if (!client) return;
+
     const unsubscribe = subscribeJson<{ visitId: string, patientName: string, chiefComplaint: string, urgency: "routine"| "elevated" | "urgent" }>(
       client,
       "vaidhya/queue/new",

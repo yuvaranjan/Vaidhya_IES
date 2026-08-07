@@ -1,8 +1,11 @@
 "use server";
 
-import { getSession } from "@/lib/auth";
-import { completeVisit } from "@/lib/mockQueue";
+import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
+
+import { getSession } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { completeVisit, type MedicationItem } from "@/lib/queue";
 
 export async function submitPrescription(visitId: string, formData: FormData) {
   const session = await getSession();
@@ -10,21 +13,43 @@ export async function submitPrescription(visitId: string, formData: FormData) {
     throw new Error("Unauthorized");
   }
 
-  // In a real app we'd parse the dynamic arrays of medications from formData.
-  // For the mock, we'll just gather it into an object.
   const rawMeds = formData.get("medications")?.toString() || "[]";
-  const medications = JSON.parse(rawMeds);
+  const medications = JSON.parse(rawMeds) as MedicationItem[];
 
-  const success = completeVisit(visitId, medications);
-
-  if (!success) {
+  // Close the visit first. It is a compare-and-swap on `in_consult`, so a
+  // double submit writes one prescription, not two.
+  const closed = await completeVisit(visitId, medications);
+  if (!closed) {
     throw new Error("Failed to complete visit. It may have already been closed.");
   }
 
-  // Clear the active visit from the session
+  // The prescription is the row the patient portal and the pharmacy queue both
+  // read. Without it, demo steps 10 and 11 have nothing to point at.
+  const prescriptionId = `rx_${randomUUID().slice(0, 8)}`;
+
+  if (db) {
+    const { error } = await db.from("prescriptions").insert({
+      prescription_id: prescriptionId,
+      visit_id: visitId,
+      doctor_id: session.doctorId,
+      medications: medications.map((m) => ({
+        name: m.name,
+        dosage: m.dosage,
+        duration: m.duration,
+        instructions: m.instructions,
+      })),
+      follow_up_requested: formData.get("follow_up") === "on",
+    });
+
+    if (error) {
+      // The visit is already closed; surfacing this is better than a silent
+      // success that leaves the patient with no prescription to collect.
+      throw new Error(`Could not save prescription: ${error.message}`);
+    }
+  }
+
   session.visitId = undefined;
   await session.save();
 
-  // Route back to the queue
   redirect("/doctor/queue");
 }
