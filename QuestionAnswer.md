@@ -37,25 +37,3 @@ A: Nothing currently — this is a real identity-collision risk we hadn't fully 
 Q10. Your own document says this is a multi-week build compressed into 20 hours, and you haven't decided what to cut. What, specifically, is not going to work tonight?
 
 A: We flagged this ourselves before you could, which is deliberate — we'd rather tell you now than have you discover it live. Realistically, here's where we expect thinness: [state your actual, current, honest answer here — e.g., "full MQTT reconnect/dedup logic may be simplified to reconnect-only without message deduplication," "we're likely building 1-2 specialist prompts fully rather than all 4," "the public health dashboard's anomaly highlighting is precomputed against seed data, not any live computation"]. Everything else — core voicebot intake, the three portals, prescription-to-pharmacy routing — is our committed critical path and will work end to end.
-
-Business / real-world viability
-"Rural India already has ASHA workers, 108 ambulance services, and government telemedicine (eSanjeevani). Why would a village health center choose Vaidhya over what already exists and is government-funded?"
-→ Be ready with a specific differentiation — likely the MQTT-text-first low-bandwidth mode and the offline architecture, since eSanjeevani assumes connectivity. Don't claim broad superiority; claim a specific gap.
-"Who pays for this? Is the village health center buying edge hardware, is this a government contract, is this a subscription per pharmacy/doctor?"
-→ If you don't have a real answer, say so plainly rather than improvising a business model on stage.
-"You need a doctor to actually staff this and be available. What's your evidence doctors will opt into a jurisdiction-assignment model like this rather than just working at existing hospitals?"
-Execution / team risk
-"Four people, 20 hours, three portals, a voicebot, MQTT, four LLM prompts, a dashboard, and live SMS. Which one person is responsible for which piece, and what happens if one of you gets stuck for three hours?"
-→ This tests whether you've actually divided labor, not just scope.
-"Show me your current git commit history / what's actually built right now, not what's in the doc."
-→ Judges sometimes ask this directly, especially late in the hackathon. Make sure what's committed matches what you claim.
-Technical depth (new angle)
-"Your voicebot runs on Ollama locally. What model, what's the actual quality of its medical reasoning versus a cloud model, and have you tested it hallucinating a wrong follow-up question on a real transcript?"
-"Your rules table uses simple comparison operators, no expression language. What happens with a rule that needs to combine two conditions — like 'fever AND low SpO2 together' — that your current schema can't express?"
-→ This is a real gap: your condition field per rule looks single-variable. Worth deciding now whether that's true and how you'd answer it.
-UX / accessibility
-"Your target patient may have low literacy and limited exposure to voice assistants. Have you actually tested this flow with someone outside your team who fits that profile, or only with each other?"
-"What happens if the patient's answer to the voicebot is unclear, off-topic, or in a mixed dialect the STT can't parse well? Does the conversation stall, or does it silently misinterpret?"
-Competitive / IP framing
-"What stops an existing telemedicine company from replicating this in a month once they see the demo?"
-→ Answer honestly: probably nothing structural — be ready to point to execution/context knowledge (rural India specifics) rather than claiming a moat you don't have.
