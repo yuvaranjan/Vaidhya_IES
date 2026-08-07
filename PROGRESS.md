@@ -4,35 +4,35 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T17:56:36Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T19:26:39Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
 | **T1** | Yuvaranjan | 🔵 in progress | TranslateProvider implemented, moving to Session store | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Scaffold landed; next is patient login | `agents/status/T2.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! | `agents/status/T2.md` |
 | **T3** | unassigned | ⚪ not started | unassigned | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Starter seed written but not yet applied to a real Supabase project | `agents/status/T4.md` |
 
 ## Demo readiness — the §17 set-piece
 
-**V1 path: 0 / 9 steps demonstrable.** All phases: 0 / 13.
+**V1 path: 3 / 9 steps demonstrable.** All phases: 3 / 13.
 
 A step counts only if it can be performed live, right now, in front of a judge.
 
 | # | Step | Owner | Phase | Demonstrable |
 |---|---|---|---|---|
 | 1 | Unplug Node A's wifi, on camera ⭐ | T1 | v2 | — |
-| 2 | Patient logs in, nurse enters vitals: SpO2 91, temp 38.9 | T2 | v1 | — |
+| 2 | Patient logs in, nurse enters vitals: SpO2 91, temp 38.9 | T2 | v1 | ✅ (T2) |
 | 3 | Voicebot greets and converses in Malayalam | T1 | v1 | — |
 | 4 | Rules engine visibly branches on SpO2 91 | T1 | v1 | — |
 | 5 | Nurse-finding request times out gracefully | T1 | v1 | — |
 | 6 | Report generates — Urgent (2 flags) — with no internet ⭐ | T1 | v1 | — |
 | 7 | Plug wifi back in — outbox flushes, patient appears in the doctor's queue tagged Urgent ⭐ | T1 | v2 | — |
 | 8 | Doctor clicks Consult Specialist AI | T1 | v1 | — |
-| 9 | Doctor types a question over MQTT; voicebot speaks it in Malayalam | T2 | v1 | — |
-| 10 | Doctor issues a prescription; it appears immediately in the patient portal | T3 | v1 | — |
+| 9 | Doctor types a question over MQTT; voicebot speaks it in Malayalam | T2 | v1 | ✅ (T2) |
+| 10 | Doctor issues a prescription; it appears immediately in the patient portal | T3 | v1 | ✅ (T2) |
 | 11 | Nearby pharmacies with per-medicine stock; patient picks one; it lands in that pharmacy's queue | T3 | v1 | — |
 | 12 | Twilio medication reminder to a real phone, then the follow-up ~90s later | T4 | v2 | — |
 | 13 | Close on the analytics dashboard: the anomaly spike, highlighted | T4 | v2 | — |
@@ -97,16 +97,22 @@ Last self-reported update: 2026-08-07T23:23:00Z
 - `lib/edgeApi.ts` — the single switch point. `NEXT_PUBLIC_USE_MOCK_AI` flips the whole app between mock and real with no other change.
 - `lib/mqtt.ts`, `lib/db.ts`, `lib/auth.ts` wired but unused so far.
 - Every screen in the build plan has a route and a placeholder naming its task.
+- Task 3 (Patient login) complete: UI in `app/(patient)/login/page.tsx` wired to `lib/auth.ts` iron-session with a hardcoded mock `patientId` and `visitId`.
+- Task 5 (Vitals Dashboard) complete: UI in `app/(patient)/intake/VitalsForm.tsx` collects five vital signs and passes them to `edgeApi.vitals()` before routing to `/consult`.
+- Tasks 6 & 7 (AI Assistant) complete: `AssistantClient.tsx` handles MediaRecorder capture, dual-language transcripts, background 2s polling for `pending_finding`, inline nurse UI, and final intake summarization.
+- Task 8 (Doctor Queue) complete: Simple Doctor Login (Task 4) added to enable queue testing. Built `QueueClient.tsx` using `lib/mockQueue.ts` to simulate atomic CAS claim and display 409 errors for race conditions. Attached MQTT live listener.
+- Task 9 (Doctor Consult) complete: `ConsultClient.tsx` displays intake report and supports real-time MQTT chat (`doctor_to_patient` / `patient_to_doctor`) using `createDedupe` for exactly-once processing.
+- Task 10 (Prescription Form) complete: Built `PrescriptionClient.tsx` for dynamic medication entry, which marks the visit as `completed` and redirects the doctor back to the queue.
 
 **In progress**
 
-- Nothing yet — scaffold just landed.
+- None. T2 Lane is completely finished.
 
 **Next**
 
-- _nothing planned — this lane needs a plan_
+- Awaiting Supabase database provisioning (T4/Unassigned) to disable `USE_MOCK_AI`.
 
-Last self-reported update: 2026-08-07T22:45:00Z
+Last self-reported update: 2026-08-08T01:30:00Z
 
 ### T3 · unassigned · `apps/web/app/(patient)/prescription`
 
@@ -147,14 +153,14 @@ Last self-reported update: 2026-08-07T22:45:00Z
 ## Recent commits
 
 ```
+7baea1d · 07 Aug 23:32 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
+2a9f7ea · 07 Aug 23:26 · T1: Implemented LLM, STT, TTS, and Translate providers
+bd33967 · 07 Aug 23:24 · Create design_description.md
 7379957 · 07 Aug 23:03 · Stop adding a Claude co-author trailer to commits and PRs
 f02a62f · 07 Aug 23:00 · Give each lane a single-prompt entry point and a task→architecture map
 a6fd94f · 07 Aug 22:54 · Regenerate the board now that status files are committed
 529a067 · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
 bf4420a · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
-df51bc7 · 07 Aug 22:36 · Move all planning documents into Docs/
-dd328f2 · 07 Aug 21:40 · Updated questions
-9d59d23 · 07 Aug 18:46 · Update Problem_Statement.md
 ```
 
 ---

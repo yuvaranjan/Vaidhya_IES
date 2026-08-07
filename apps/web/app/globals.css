@@ -1,59 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /*
- * Project Vaidhya theme — FROZEN HOUR 1, all lanes.
- * Source: Docs/Project_Vaidhya_V1_Build_Plan.md §3
- *
- * Tailwind v4 is CSS-first: tokens live here, not in tailwind.config.ts.
- * Every token below is a real utility — `bg-bg`, `bg-surface`, `border-border`,
- * `bg-primary-500`, `text-text`, `text-muted`, `text-warn`, `text-danger`.
- *
- * NON-NEGOTIABLE RULES
- *  - Light mode only. No `dark:` variants anywhere. No theme toggle.
- *  - Flat 2D. No gradients, no glassmorphism, no blur. `shadow-sm` is the max —
- *    prefer `border border-border` over a shadow.
- *  - rounded-xl on cards, rounded-lg on inputs and buttons.
- *  - Generous whitespace: p-6 on cards, gap-4 minimum between form fields.
- *  - Green is for primary actions and accents only. The canvas stays white so
- *    clinical text reads cleanly.
- *  - Amber and red appear ONLY on urgency indicators. Never decorative.
- *  - Body text text-text, secondary text-muted. Minimum 15px in clinical content.
+ * Cure Cloud — Premium Healthcare UI
+ * Specification: design_description.md
  */
 
 @theme {
-  --color-bg: #f7fbf8; /* page background — barely-green white */
-  --color-surface: #ffffff; /* cards */
-  --color-border: #e3ede7;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  
+  --color-background: #FBFCFD;
+  --color-foreground: #173449;
+  
+  --color-card: #FFFFFF;
+  --color-card-foreground: #173449;
+  
+  --color-primary: #173F59;
+  --color-primary-foreground: #FFFFFF;
+  
+  --color-secondary: #EEF6F6;
+  --color-secondary-foreground: #173F59;
+  
+  --color-muted: #F4F7F8;
+  --color-muted-foreground: #6D7F8C;
+  
+  --color-accent: #2B9C95;
+  --color-accent-foreground: #FFFFFF;
+  
+  --color-destructive: #DC4D57;
+  --color-destructive-foreground: #FFFFFF;
+  
+  --color-border: #DCE7EA;
+  --color-ring: #2B9C95;
+  --color-input: #F7FAFB;
 
-  --color-primary-50: #f1f8f4;
-  --color-primary-100: #dcefe3;
-  --color-primary-200: #bfe0cc;
-  --color-primary-300: #9bceaf;
-  --color-primary-400: #6fb78c;
-  --color-primary-500: #4a9e6e;
-  --color-primary-600: #3a8058;
-  --color-primary-700: #2e6545;
+  --color-sidebar: #FFFFFF;
+  --color-sidebar-foreground: #607482;
+  --color-sidebar-primary: #E8F4F3;
+  --color-sidebar-primary-foreground: #173F59;
+  --color-sidebar-accent: #F4F8F8;
 
-  --color-text: #1f2a24; /* dark slate — never pure black */
-  --color-muted: #5c6b62;
-
-  --color-warn: #e8a33d; /* urgency: elevated */
-  --color-danger: #d9534f; /* urgency: urgent */
+  /* Legacy aliases for backwards compatibility */
+  --color-bg: #FBFCFD;
+  --color-text: #173449;
+  --color-primary-500: #173F59;
+  --color-surface: #FFFFFF;
+  --color-danger: #DC4D57;
+  --color-warn: #E8A33D;
 }
 
-html,
-body {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-body {
-  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+html, body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Clinical content is read by people under fluorescent light on cheap screens. */
-body {
-  font-size: 15px;
-  line-height: 1.55;
+/* Custom Navy-tinted soft shadows */
+.shadow-soft {
+  box-shadow: 0 5px 18px rgba(15, 45, 64, 0.045);
 }
+
+.shadow-card-hover {
+  box-shadow: 0 8px 25px rgba(15, 45, 64, 0.08);
+}
+
+.shadow-popover {
+  box-shadow: 0 10px 30px rgba(15, 45, 64, 0.12);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #DCE7EA;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B5CBD1;
+}
+

@@ -1,0 +1,29 @@
+import { getSession } from "@/lib/auth";
+import { redirect, notFound } from "next/navigation";
+import { getMockVisit } from "@/lib/mockQueue";
+import { ConsultClient } from "./ConsultClient";
+
+export default async function DoctorConsultPage({
+  params,
+}: {
+  params: Promise<{ visitId: string }>;
+}) {
+  const { visitId } = await params;
+  const session = await getSession();
+
+  if (session.role !== "doctor" || !session.doctorId) {
+    redirect("/doctor/login");
+  }
+
+  const visit = getMockVisit(visitId);
+  if (!visit) {
+    notFound();
+  }
+
+  return (
+    <div className="min-h-screen bg-bg pt-6">
+      <ConsultClient visit={visit} doctorId={session.doctorId} />
+    </div>
+  );
+}
+
