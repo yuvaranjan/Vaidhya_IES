@@ -8,10 +8,14 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File ./start.ps1",
+    "setup": "npm install && node scripts/install-git-hooks.mjs && node scripts/update-progress.mjs",
     "dev": "npm run dev --workspace web",
     "build": "npm run build --workspace web",
-    "start": "npm run start --workspace web",
-    "lint": "npm run lint --workspace web"
+    "lint": "npm run lint --workspace web",
+    "progress": "node scripts/update-progress.mjs",
+    "check": "node scripts/update-progress.mjs --check && node scripts/check-setup.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs"
   },
   "engines": {
     "node": ">=20"

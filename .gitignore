@@ -36,6 +36,10 @@ models/
 *.gguf
 *.safetensors
 
+# --- claude code ---
+# .claude/settings.json IS committed — it carries the team's hooks.
+.claude/settings.local.json
+
 # --- os / editor ---
 .DS_Store
 Thumbs.db

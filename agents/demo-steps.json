@@ -1,0 +1,100 @@
+{
+  "$comment": "The §17 demo set-piece from Docs/Project_Vaidhya_Technical_Architecture_v1.md. This is the definition of done for the whole project. Lanes claim steps via demo_steps_done in agents/status/*.md frontmatter. Do not renumber steps — the numbers are referenced from status files.",
+  "source": "Docs/Project_Vaidhya_Technical_Architecture_v1.md §17",
+  "steps": [
+    {
+      "n": 1,
+      "owner": "T1",
+      "title": "Unplug Node A's wifi, on camera",
+      "detail": "Everything from here to step 6 happens with no internet. This is one of the three steps that actually wins it.",
+      "phase": "v2",
+      "critical": true
+    },
+    {
+      "n": 2,
+      "owner": "T2",
+      "title": "Patient logs in, nurse enters vitals: SpO2 91, temp 38.9",
+      "detail": "Phone + OTP 123456. Two urgency flags now armed.",
+      "phase": "v1"
+    },
+    {
+      "n": 3,
+      "owner": "T1",
+      "title": "Voicebot greets and converses in Malayalam",
+      "detail": "Transcript panel shows Malayalam AND its English clinical translation side by side.",
+      "phase": "v1"
+    },
+    {
+      "n": 4,
+      "owner": "T1",
+      "title": "Rules engine visibly branches on SpO2 91",
+      "detail": "Bot goes straight to respiratory questions; on-screen badge reads 'fired rule: SpO2 < 92'. The point is that it is not a black box.",
+      "phase": "v1"
+    },
+    {
+      "n": 5,
+      "owner": "T1",
+      "title": "Nurse-finding request times out gracefully",
+      "detail": "Bot asks for a finding, nurse does not respond, after 20s it re-prompts, then proceeds with not_obtained. Say out loud: the session never stalls on a missing test.",
+      "phase": "v1"
+    },
+    {
+      "n": 6,
+      "owner": "T1",
+      "title": "Report generates — Urgent (2 flags) — with no internet",
+      "detail": "One of the three steps that actually wins it.",
+      "phase": "v1",
+      "critical": true
+    },
+    {
+      "n": 7,
+      "owner": "T1",
+      "title": "Plug wifi back in — outbox flushes, patient appears in the doctor's queue tagged Urgent",
+      "detail": "Offline sync on reconnect. The single hardest claim to fake, and the third step that wins it.",
+      "phase": "v2",
+      "critical": true
+    },
+    {
+      "n": 8,
+      "owner": "T1",
+      "title": "Doctor clicks Consult Specialist AI",
+      "detail": "Structured opinion returns with confidence and evidence trace.",
+      "phase": "v1"
+    },
+    {
+      "n": 9,
+      "owner": "T2",
+      "title": "Doctor types a question over MQTT; voicebot speaks it in Malayalam",
+      "detail": "Patient answers, the English answer appears on the doctor's screen. Needs T1's relay on the edge side.",
+      "phase": "v1"
+    },
+    {
+      "n": 10,
+      "owner": "T3",
+      "title": "Doctor issues a prescription; it appears immediately in the patient portal",
+      "detail": "Full medication list, viewable and printable. This is how the prescription is delivered — nothing about it depends on SMS.",
+      "phase": "v1"
+    },
+    {
+      "n": 11,
+      "owner": "T3",
+      "title": "Nearby pharmacies with per-medicine stock; patient picks one; it lands in that pharmacy's queue",
+      "detail": "Then the pharmacist marks it fulfilled and bills it. The patient can now simply walk to that shop.",
+      "phase": "v1"
+    },
+    {
+      "n": 12,
+      "owner": "T4",
+      "title": "Twilio medication reminder to a real phone, then the follow-up ~90s later",
+      "detail": "Reminders ABOUT the prescription, not the prescription itself. Highest external risk in the project — DLT/trial restrictions can block this for reasons unrelated to your code.",
+      "phase": "v2"
+    },
+    {
+      "n": 13,
+      "owner": "T4",
+      "title": "Close on the analytics dashboard: the anomaly spike, highlighted",
+      "detail": "Precomputed from regional_case_counts.",
+      "phase": "v2"
+    }
+  ]
+}

@@ -9,6 +9,16 @@ the medicines in stock.
 
 Hackathon build — IES College, Thrissur.
 
+**Start here:** [SETUP.md](SETUP.md) to install and run · [PROGRESS.md](PROGRESS.md) for
+who is building what and how close the demo is · [agents/README.md](agents/README.md) for
+how four people build this in parallel without colliding.
+
+```bash
+./start.bat
+```
+
+That installs everything missing and launches both servers. On macOS or Linux, `./start.sh`.
+
 ---
 
 ## Repository layout
@@ -18,6 +28,8 @@ apps/web/              Next.js 15 · TypeScript · Tailwind v4   → T2 (Yadav)
 services/edge-ai/      FastAPI · Python                        → T1 (Yuvaranjan)
 packages/shared/       The two frozen contracts (HTTP + MQTT)  → both, changed together
 db/                    Supabase schema + seed
+agents/                Lane briefs + the living status board
+scripts/               Progress generator, doc-drift checker, git hooks
 Docs/                  Architecture, implementation plan, build plan
 ```
 
@@ -150,6 +162,9 @@ immediately after V1.
 
 ## Where to read next
 
+- `SETUP.md` — install, run, env vars, troubleshooting
+- `PROGRESS.md` — generated board: who is on what, and how many §17 demo steps are live
+- `agents/README.md` — the parallel-build protocol every teammate follows
 - `Docs/Project_Vaidhya_V1_Build_Plan.md` — the eleven steps, the lane split, what to build tonight
 - `Docs/Project_Vaidhya_Technical_Architecture_v1.md` — schema, pipeline, MQTT, provider abstraction
 - `Docs/Project_Vaidhya_Implementation_Plan_v1.md` — schedule and checkpoints
