@@ -103,6 +103,15 @@ export interface VitalsResponse {
 }
 
 /* ------------------------------------------------------------------ */
+/* POST /voice/turn/text   — typed-answer fallback (architecture R7)   */
+/* ------------------------------------------------------------------ */
+
+export interface VoiceTurnTextRequest {
+  visit_id: string;
+  text_en: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* POST /voice/turn   (multipart: audio=<webm blob>, visit_id=<string>) */
 /* ------------------------------------------------------------------ */
 
@@ -170,6 +179,29 @@ export interface ConsultAskRequest {
 /* ------------------------------------------------------------------ */
 /* GET /health                                                         */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* GET/POST /settings/model   — runtime model selection                 */
+/* ------------------------------------------------------------------ */
+
+export type ModelProvider = "lmstudio" | "groq";
+
+export interface ModelOption {
+  id: string;
+  provider: ModelProvider;
+  label: string;
+}
+
+export interface ModelsResponse {
+  current: string;
+  provider: ModelProvider;
+  available: ModelOption[];
+}
+
+export interface SetModelRequest {
+  model: string;
+  provider: ModelProvider;
+}
 
 export type ServiceStatus = "ok" | "down";
 

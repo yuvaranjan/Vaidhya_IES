@@ -24,8 +24,23 @@ export function SpecialistPanel({ visitId }: { visitId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ visit_id: visitId })
       });
-      if (!res.ok) throw new Error("Failed to fetch specialist opinion");
       const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed to fetch specialist opinion");
+
+      // The API validates its own shape server-side now, but a panel that
+      // trusts an LLM-shaped response without checking is exactly how this
+      // crashed the first time — belt and suspenders.
+      const CONFIDENCE_LEVELS = ["high", "moderate", "low"];
+      if (
+        typeof json?.opinion !== "string" ||
+        !CONFIDENCE_LEVELS.includes(json?.confidence) ||
+        !Array.isArray(json?.evidence) ||
+        typeof json?.reasoning !== "string" ||
+        !Array.isArray(json?.red_flags)
+      ) {
+        throw new Error("The specialist response was malformed.");
+      }
+
       setData(json);
     } catch (err: any) {
       setError(err.message || "An error occurred");

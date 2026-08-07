@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { edgeApi } from "@/lib/edgeApi";
 import type { Language, IntakeCompleteResponse, PendingFinding } from "@vaidhya/shared";
 import { 
@@ -14,7 +15,8 @@ import {
   Bot,
   User,
   Activity,
-  ArrowRight
+  ArrowRight,
+  FileCheck
 } from "lucide-react";
 
 type Turn = {
@@ -37,13 +39,17 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [pendingFinding, setPendingFinding] = useState<PendingFinding | null>(null);
   const [intakeResult, setIntakeResult] = useState<IntakeCompleteResponse | null>(null);
+
+  const router = useRouter();
 
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastDoctorQuestionId = useRef<string | null>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,7 +57,7 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
 
   // Poll session state every 2 seconds
   useEffect(() => {
-    if (!language || intakeResult) return;
+    if (!language) return;
 
     const interval = setInterval(async () => {
       try {
@@ -61,13 +67,45 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
         } else {
           setPendingFinding(null);
         }
+        
+        if (state.doctor_question && state.doctor_question.message_id !== lastDoctorQuestionId.current) {
+          lastDoctorQuestionId.current = state.doctor_question.message_id;
+          setTranscript((prev) => [
+            ...prev,
+            { role: "bot", textNative: state.doctor_question!.text_native, textEn: state.doctor_question!.text_en },
+          ]);
+          if (state.doctor_question.audio_url) {
+            playAudio(state.doctor_question.audio_url);
+          }
+        }
       } catch (err) {
         console.error("Polling error:", err);
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [language, intakeResult, visitId]);
+  }, [language, visitId]);
+
+  // Poll for prescription once intake is complete
+  useEffect(() => {
+    if (!intakeResult) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/prescriptions/status?visit_id=${visitId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.prescription_id) {
+            router.push(`/prescription?id=${data.prescription_id}`);
+          }
+        }
+      } catch (err) {
+        console.error("Prescription polling error:", err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [intakeResult, visitId, router]);
 
   const startSession = async (lang: Language) => {
     setIsStarting(true);
@@ -138,17 +176,31 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
       { role: "patient", textNative: userText, textEn: userText },
     ]);
 
-    setTimeout(async () => {
+    try {
+      const res = await edgeApi.voiceTurnText({ visit_id: visitId, text_en: userText });
+
       setTranscript((prev) => [
         ...prev,
-        { role: "bot", textNative: "Thank you for sharing that symptom. How long have you been experiencing this?", textEn: "Thank you for sharing that symptom. How long have you been experiencing this?" },
+        { role: "bot", textNative: res.bot_text_native, textEn: res.bot_text_en },
       ]);
-      setIsProcessing(false);
-      
-      if (userText.toLowerCase().includes("done") || userText.toLowerCase().includes("no more")) {
+
+      if (res.bot_audio_url) {
+        playAudio(res.bot_audio_url);
+      }
+
+      if (res.next_action === "request_nurse_finding" && res.pending_finding) {
+        setPendingFinding(res.pending_finding);
+      }
+
+      if (res.intake_done || res.next_action === "complete_intake") {
         await finalizeIntake();
       }
-    }, 1200);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send message.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleTurn = async (audioBlob: Blob) => {
@@ -177,12 +229,31 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
   };
 
   const finalizeIntake = async () => {
+    setIsFinalizing(true);
     try {
       const res = await edgeApi.intakeComplete(visitId);
       setIntakeResult(res);
     } catch (err) {
       console.error("Failed to complete intake:", err);
+      alert("Failed to generate the report. Try again.");
+    } finally {
+      setIsFinalizing(false);
     }
+  };
+
+  /**
+   * The nurse's manual override. Report generation otherwise depends on the
+   * model itself deciding next_action="complete_intake" — this gives the
+   * nurse a deterministic way to end the intake and send it to the doctor
+   * regardless of what the model is doing, at any point in the conversation.
+   */
+  const handleFinalizeClick = () => {
+    if (isProcessing || isFinalizing) return;
+    const ok = window.confirm(
+      "End the intake now and send this report to the doctor's queue? " +
+        "Nothing said after this point will be included.",
+    );
+    if (ok) void finalizeIntake();
   };
 
   const handleNurseFindingSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -234,51 +305,53 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
     );
   }
 
-  if (intakeResult) {
-    return (
-      <div className="w-full max-w-xl bg-card p-6 sm:p-8 rounded-xl shadow-soft border border-border mx-auto my-10 space-y-6">
-        <div className="flex items-center gap-3 border-b border-border pb-4">
-          <div className="w-10 h-10 rounded-full bg-[#E5F5F3] text-[#14736A] flex items-center justify-center font-bold">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Clinical Triage Completed</p>
-            <h2 className="text-2xl font-bold text-foreground tracking-[-0.025em]">Consultation Summary</h2>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-background p-4 rounded-xl border border-border">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1">Chief Complaint</p>
-            <p className="text-foreground font-bold text-sm">{intakeResult.chief_complaint}</p>
-          </div>
-
-          <div className="bg-background p-4 rounded-xl border border-border">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1">Diagnostic Summary</p>
-            <p className="text-foreground text-sm leading-relaxed font-medium">{intakeResult.summary_text}</p>
-          </div>
-
-          <div className={`p-4 rounded-xl border font-bold text-sm flex items-center justify-between ${
-            intakeResult.urgency_tier.tier === "urgent" ? "bg-destructive/10 border-destructive/20 text-destructive" :
-            intakeResult.urgency_tier.tier === "elevated" ? "bg-[#EEF3FB] border-[#D1E0F5] text-[#315A94]" :
-            "bg-[#E5F5F3] border-[#C2E8E4] text-[#14736A]"
-          }`}>
-            <span>Urgency Assessment Tier</span>
-            <span className="uppercase tracking-widest text-xs px-2.5 py-1 rounded-full bg-white/70 shadow-sm">
-              {intakeResult.urgency_tier.tier} ({intakeResult.urgency_tier.flag_count} Flags)
-            </span>
-          </div>
-        </div>
-
-        <p className="text-xs text-center text-muted-foreground font-medium pt-2">
-          Your triage summary has been transferred to the doctor queue. An attending physician will review your case shortly.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col h-[82vh] bg-card rounded-xl shadow-soft border border-border overflow-hidden my-4">
+    <div className={`w-full mx-auto flex flex-col lg:flex-row gap-6 my-4 ${intakeResult ? 'max-w-6xl h-auto' : 'max-w-4xl h-[82vh]'}`}>
+      
+      {/* Intake Result Sidebar (Only visible after finalize) */}
+      {intakeResult && (
+        <div className="w-full lg:w-1/3 bg-card p-6 sm:p-8 rounded-xl shadow-soft border border-border space-y-6 h-fit">
+          <div className="flex items-center gap-3 border-b border-border pb-4">
+            <div className="w-10 h-10 rounded-full bg-[#E5F5F3] text-[#14736A] flex items-center justify-center font-bold">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Clinical Triage Completed</p>
+              <h2 className="text-2xl font-bold text-foreground tracking-[-0.025em]">Consultation Summary</h2>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-background p-4 rounded-xl border border-border">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1">Chief Complaint</p>
+              <p className="text-foreground font-bold text-sm">{intakeResult.chief_complaint}</p>
+            </div>
+
+            <div className="bg-background p-4 rounded-xl border border-border">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1">Diagnostic Summary</p>
+              <p className="text-foreground text-sm leading-relaxed font-medium">{intakeResult.summary_text}</p>
+            </div>
+
+            <div className={`p-4 rounded-xl border font-bold text-sm flex items-center justify-between ${
+              intakeResult.urgency_tier.tier === "urgent" ? "bg-destructive/10 border-destructive/20 text-destructive" :
+              intakeResult.urgency_tier.tier === "elevated" ? "bg-[#EEF3FB] border-[#D1E0F5] text-[#315A94]" :
+              "bg-[#E5F5F3] border-[#C2E8E4] text-[#14736A]"
+            }`}>
+              <span>Urgency Assessment Tier</span>
+              <span className="uppercase tracking-widest text-xs px-2.5 py-1 rounded-full bg-white/70 shadow-sm">
+                {intakeResult.urgency_tier.tier} ({intakeResult.urgency_tier.flag_count} Flags)
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-center text-muted-foreground font-medium pt-2">
+            Your triage summary has been transferred to the doctor queue. An attending physician will review your case shortly.
+          </p>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className={`w-full ${intakeResult ? 'lg:w-2/3 h-[82vh]' : 'flex-1'} flex flex-col bg-card rounded-xl shadow-soft border border-border overflow-hidden`}>
       
       {/* Header */}
       <div className="px-6 py-4 bg-card border-b border-border flex justify-between items-center shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-10">
@@ -296,10 +369,19 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
           <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full bg-secondary text-primary border border-border">
             Lang: {language.toUpperCase()}
           </span>
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full border border-border">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-secondary rounded-full border border-border">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
             <span className="text-[11px] font-bold uppercase tracking-wider text-secondary-foreground">Active Voice Node</span>
           </div>
+          <button
+            onClick={handleFinalizeClick}
+            disabled={isProcessing || isFinalizing || transcript.length === 0}
+            title="Nurse override — end the intake now and send the report to the doctor"
+            className="px-3.5 h-9 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider shadow-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity flex items-center gap-1.5"
+          >
+            <FileCheck className="w-3.5 h-3.5" />
+            <span>{isFinalizing ? "Finalizing…" : "Finalize Report"}</span>
+          </button>
         </div>
       </div>
 
@@ -405,6 +487,7 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
       </div>
 
       <audio ref={audioRef} className="hidden" />
+      </div>
     </div>
   );
 }

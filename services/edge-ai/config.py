@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     # perform a physical check in 20 seconds, but a judge will not wait 90.
     on_demand_timeout_seconds: int = 20
 
+    # A small local model (the offline story) does not reliably follow a
+    # "wrap up by question N" instruction on its own — verified by testing
+    # the identical conversation twice and getting different turn counts.
+    # This is the deterministic backstop: past this many patient turns, the
+    # code forces complete_intake regardless of what the model decides, so
+    # the report is guaranteed to generate rather than merely likely to.
+    max_intake_turns: int = 6
+
     # --- data ---------------------------------------------------------
     supabase_url: str = ""
     supabase_service_key: str = ""

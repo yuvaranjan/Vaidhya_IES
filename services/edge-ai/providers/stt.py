@@ -32,16 +32,22 @@ class GroqWhisperProvider:
         if not self.client:
             raise RuntimeError("GROQ_API_KEY is not set.")
 
-        audio_file = ("audio.wav", audio_bytes)
+        # The browser records webm (MediaRecorder's default) — naming it
+        # accurately, even though Groq tolerated "audio.wav" in practice.
+        audio_file = ("audio.webm", audio_bytes)
 
         native_task = self.client.audio.transcriptions.create(
             file=audio_file,
             model=self.settings.groq_stt_model,
             language=language,
         )
+        # Groq's /audio/translations endpoint only accepts whisper-large-v3 —
+        # the turbo variant configured for transcription (GROQ_STT_MODEL)
+        # rejects it with 400 "does not support translate". This is the one
+        # call in the file that cannot follow that setting.
         english_task = self.client.audio.translations.create(
             file=audio_file,
-            model=self.settings.groq_stt_model,
+            model="whisper-large-v3",
         )
 
         native_resp, english_resp = await asyncio.gather(native_task, english_task)

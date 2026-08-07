@@ -152,7 +152,19 @@ async def flush_outbox() -> dict:
             batch = batches.get(entity)
             if not batch:
                 continue
-            payloads = [json.loads(r["payload"]) for r in batch]
+
+            # Postgres's ON CONFLICT DO UPDATE refuses to touch the same row
+            # twice inside one statement — a visit that got two enqueues
+            # before either flushed (e.g. created, then marked
+            # awaiting_doctor) crashed the whole batch, not just that visit.
+            # Rows are already selected oldest-first, so the last write per
+            # primary key wins here too; every id, including the earlier
+            # superseded ones, still gets marked synced below.
+            by_pk: dict[str, dict] = {}
+            for r in batch:
+                by_pk[r["entity_id"]] = json.loads(r["payload"])
+            payloads = list(by_pk.values())
+
             if await _push(client, entity, payloads):
                 synced_ids.extend(r["id"] for r in batch)
             else:

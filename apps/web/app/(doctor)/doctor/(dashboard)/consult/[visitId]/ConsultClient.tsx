@@ -180,7 +180,7 @@ export function ConsultClient({
                 }`}>
                   <p>{m.text}</p>
                   <p className="text-[10px] mt-1.5 text-right font-mono opacity-70">
-                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(m.timestamp).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
               </div>

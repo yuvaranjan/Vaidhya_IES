@@ -23,7 +23,7 @@ from config import get_settings
 from contracts import UrgencyFlag, VitalsRequest
 from rules.engine import fire_rules
 from sync.worker import enqueue
-from voicebot.session import Session
+from voicebot.session import Session, Turn
 
 
 def load_rules() -> list[dict]:
@@ -100,6 +100,21 @@ def record_vitals(session: Session, req: VitalsRequest) -> list[UrgencyFlag]:
                 else str(answer["value_numeric"])
             )
             answer["reading_id"] = pending.reading_id
+
+            # The LLM only ever sees session.turns — without this, a nurse's
+            # answer lands in vitals_readings but is invisible to the model,
+            # which then has no way to know an exam was already done and asks
+            # for another one. This is what actually lets the conversation
+            # move on instead of requesting findings in a loop.
+            session.turns.append(
+                Turn(
+                    speaker="nurse",
+                    text_en=(
+                        f"Examination finding for '{pending.type}' "
+                        f"(requested: {pending.instruction_en}): {pending.value_text}"
+                    ),
+                )
+            )
 
     with sqlite3.connect(settings.edge_db_path) as conn:
         for r in readings:

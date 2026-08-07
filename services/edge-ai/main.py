@@ -25,10 +25,14 @@ from contracts import (
     ConsultAskRequest,
     HealthResponse,
     IntakeCompleteRequest,
+    ModelOption,
+    ModelsResponse,
     SessionStartRequest,
     SessionState,
+    SetModelRequest,
     VitalsRequest,
     VitalsResponse,
+    VoiceTurnTextRequest,
 )
 from voicebot.session import as_contract, resolve_pending, store
 
@@ -80,6 +84,65 @@ def not_implemented(task: str) -> JSONResponse:
         status_code=501,
         content={"error": "not_implemented", "owner": "T1", "task": task},
     )
+
+
+# ---------------------------------------------------------------------------
+# GET/POST /settings/model — runtime model selection.
+#
+# The tiny local model is the whole offline story, but it is not reliably
+# instruction-following (verified: the same conversation, run twice,
+# produced different turn counts). This lets a nurse pick a bigger model —
+# a larger LM Studio download, or Groq directly — for the rest of the
+# session, no restart. Options are queried live rather than hardcoded, so
+# the list only ever shows what is actually reachable right now.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/settings/models", response_model=ModelsResponse)
+async def list_models():
+    import httpx
+
+    from model_settings import get_active
+
+    settings = get_settings()
+    available: list[ModelOption] = []
+
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(f"{settings.edge_llm_url}/models")
+            if resp.status_code == 200:
+                for m in resp.json().get("data", []):
+                    available.append(
+                        ModelOption(id=m["id"], provider="lmstudio", label=f"{m['id']} (local)")
+                    )
+    except Exception:
+        logger.info("settings/models: LM Studio unreachable, omitting local models")
+
+    if settings.groq_api_key:
+        try:
+            from groq import AsyncGroq
+
+            groq_client = AsyncGroq(api_key=settings.groq_api_key)
+            resp = await groq_client.models.list()
+            for m in resp.data:
+                # The same account lists Whisper/TTS models too — not chat models.
+                if "whisper" in m.id or "tts" in m.id or "guard" in m.id:
+                    continue
+                available.append(ModelOption(id=m.id, provider="groq", label=f"{m.id} (cloud)"))
+        except Exception:
+            logger.info("settings/models: Groq model list unreachable, omitting cloud models")
+
+    active = get_active()
+    return ModelsResponse(current=active.model, provider=active.provider, available=available)
+
+
+@app.post("/settings/model")
+async def set_model(req: SetModelRequest):
+    from model_settings import set_active
+
+    set_active(req.provider, req.model)
+    logger.info("settings/model: switched to %s (%s)", req.model, req.provider)
+    return {"ok": True, "current": req.model, "provider": req.provider}
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +260,27 @@ async def voice_turn(visit_id: str = Form(...), audio: UploadFile = File(...)):
 
     # If the doctor was waiting on this turn, their answer goes back over MQTT.
     # answer_doctor() clears the question, so the patient is not re-asked it.
+    from consult import answer_doctor
+
+    answer_doctor(session, response.transcript_en)
+
+    store.put(session)
+    return response
+
+
+@app.post("/voice/turn/text")
+async def voice_turn_text(req: VoiceTurnTextRequest):
+    """The typed-answer fallback — same turn loop as /voice/turn, minus STT."""
+    session = store.get(req.visit_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "session not found"})
+
+    resolve_pending(session)
+
+    from voicebot.orchestrator import run_text_turn
+
+    response = await run_text_turn(session, req.text_en)
+
     from consult import answer_doctor
 
     answer_doctor(session, response.transcript_en)

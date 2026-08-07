@@ -82,6 +82,14 @@ class VitalsResponse(BaseModel):
     fired_flags: list[UrgencyFlag] = Field(default_factory=list)
 
 
+# --- POST /voice/turn/text  (typed-answer fallback, R7) ------------------
+
+
+class VoiceTurnTextRequest(BaseModel):
+    visit_id: str
+    text_en: str
+
+
 # --- POST /voice/turn ---------------------------------------------------
 
 
@@ -142,6 +150,28 @@ class IntakeCompleteResponse(BaseModel):
 class ConsultAskRequest(BaseModel):
     visit_id: str
     question_en: str
+
+
+# --- GET/POST /settings/model  (runtime model selection) -----------------
+
+ModelProvider = Literal["lmstudio", "groq"]
+
+
+class ModelOption(BaseModel):
+    id: str
+    provider: ModelProvider
+    label: str
+
+
+class ModelsResponse(BaseModel):
+    current: str
+    provider: ModelProvider
+    available: list[ModelOption] = Field(default_factory=list)
+
+
+class SetModelRequest(BaseModel):
+    model: str
+    provider: ModelProvider
 
 
 # --- GET /health --------------------------------------------------------

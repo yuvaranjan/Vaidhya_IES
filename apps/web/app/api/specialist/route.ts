@@ -43,7 +43,10 @@ const schema = {
           source: { type: "string", "enum": ["vitals", "transcript", "finding"] },
           detail: { type: "string" }
         },
-        required: ["source", "detail"]
+        required: ["source", "detail"],
+        // Groq's strict validator requires this on every nested object, not
+        // just the root schema — omitting it here is what 400'd the request.
+        additionalProperties: false
       }
     },
     reasoning: { type: "string" },
@@ -52,7 +55,8 @@ const schema = {
       items: { type: "string" }
     }
   },
-  required: ["opinion", "confidence", "evidence", "reasoning", "red_flags"]
+  required: ["opinion", "confidence", "evidence", "reasoning", "red_flags"],
+  additionalProperties: false
 };
 
 export async function POST(req: Request) {
@@ -95,12 +99,23 @@ export async function POST(req: Request) {
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        // llama-3.3-70b-versatile does not support response_format:json_schema
+        // at all (400 on any request) — it only accepts the loose json_object
+        // mode, which enforces "valid JSON", not field names. That is exactly
+        // how this crashed: Groq returned syntactically valid but differently
+        // shaped JSON (assessment/recommendations/... instead of
+        // opinion/confidence/...), and nothing caught the mismatch before it
+        // reached the UI. gpt-oss-20b is confirmed (tested directly against
+        // the Groq API) to support strict json_schema on this account.
+        model: "openai/gpt-oss-20b",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Review this patient case:\n\n${clinicalContext}` }
         ],
-        response_format: { type: "json_object" }
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "specialist_opinion", schema, strict: true }
+        }
       })
     });
 
@@ -113,6 +128,23 @@ export async function POST(req: Request) {
     const groqData = await groqRes.json();
     const content = groqData.choices?.[0]?.message?.content;
     const result = JSON.parse(content);
+
+    // strict:true is Groq's guarantee, not a law of physics — validate before
+    // handing it to the UI rather than trusting it blindly a second time.
+    const CONFIDENCE_LEVELS = ["high", "moderate", "low"];
+    if (
+      typeof result?.opinion !== "string" ||
+      !CONFIDENCE_LEVELS.includes(result?.confidence) ||
+      !Array.isArray(result?.evidence) ||
+      typeof result?.reasoning !== "string" ||
+      !Array.isArray(result?.red_flags)
+    ) {
+      console.error("Specialist API: model returned an unexpected shape:", result);
+      return NextResponse.json(
+        { error: "The specialist model returned an unexpected response. Try again." },
+        { status: 502 },
+      );
+    }
 
     return NextResponse.json(result);
   } catch (error) {

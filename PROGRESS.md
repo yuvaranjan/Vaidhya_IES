@@ -4,11 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-<<<<<<< HEAD
-Generated 2026-08-07T22:50:08Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
-=======
-Generated 2026-08-07T21:21:26Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
->>>>>>> f9d92a9 (fix(web): reconcile T2/T3 lanes onto real data, T2 UI preserved)
+Generated 2026-08-07T23:01:03Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -195,19 +191,15 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
-<<<<<<< HEAD
+d1baea5 · 08 Aug 04:30 · fix(web): fix doctor clarification questions and prescription auto-redirect
 f48ef51 · 08 Aug 04:10 · fix(web): add null checks for db client in analytics page and specialist route
 96f769b · 08 Aug 04:00 · feat(edge-ai): implement /vitals rules engine, outbox sync, and MQTT relay
-=======
-96f769b · 08 Aug 02:49 · feat(edge-ai): implement /vitals rules engine, outbox sync, and MQTT relay
->>>>>>> f9d92a9 (fix(web): reconcile T2/T3 lanes onto real data, T2 UI preserved)
 e274bad · 08 Aug 01:40 · Merge branch 'main' of origin/main integrating T1 Phase 1, T2 specialist, and T4 analytics
 f964454 · 08 Aug 01:34 · Merge branch 'main' of origin/main into local main
 421d604 · 08 Aug 01:32 · fix(auth): add safe build-time fallback for SESSION_SECRET
 68dcd8b · 08 Aug 01:32 · fix(web): remove duplicate history route group file and clean up routing
 b94dd5f · 08 Aug 01:29 · Merge branch 'main' of origin/main integrating T1 providers, T2 dashboard shell, and T3 pharmacy fulfillment
 8fc9f13 · 08 Aug 01:28 · feat(pharmacy): implement Lane T3 pharmacy queue, stock CRUD, live inventory routing, and delivery simulation
-37514a8 · 08 Aug 01:20 · fix(web): use unique composite key for Sidebar navigation items to prevent React key duplication warning
 ```
 
 ---
