@@ -37,3 +37,17 @@ A: Nothing currently — this is a real identity-collision risk we hadn't fully 
 Q10. Your own document says this is a multi-week build compressed into 20 hours, and you haven't decided what to cut. What, specifically, is not going to work tonight?
 
 A: We flagged this ourselves before you could, which is deliberate — we'd rather tell you now than have you discover it live. Realistically, here's where we expect thinness: [state your actual, current, honest answer here — e.g., "full MQTT reconnect/dedup logic may be simplified to reconnect-only without message deduplication," "we're likely building 1-2 specialist prompts fully rather than all 4," "the public health dashboard's anomaly highlighting is precomputed against seed data, not any live computation"]. Everything else — core voicebot intake, the three portals, prescription-to-pharmacy routing — is our committed critical path and will work end to end.
+1. "Rural India already has ASHA workers, 108 ambulance services, and government telemedicine (eSanjeevani). Why would a village health center choose Vaidhya over what already exists and is government-funded?"
+→ Be ready with a specific differentiation — likely the MQTT-text-first low-bandwidth mode and the offline architecture, since eSanjeevani assumes connectivity. Don't claim broad superiority; claim a specific gap.
+
+2. "Who pays for this? Is the village health center buying edge hardware, is this a government contract, is this a subscription per pharmacy/doctor?"
+→ If you don't have a real answer, say so plainly rather than improvising a business model on stage.
+
+3. "You need a doctor to actually staff this and be available. What's your evidence doctors will opt into a jurisdiction-assignment model like this rather than just working at existing hospitals?"
+
+4. "Your voicebot runs on Ollama locally. What model, what's the actual quality of its medical reasoning versus a cloud model, and have you tested it hallucinating a wrong follow-up question on a real transcript?"
+
+5. "Your rules table uses simple comparison operators, no expression language. What happens with a rule that needs to combine two conditions — like 'fever AND low SpO2 together' — that your current schema can't express?"
+→ This is a real gap: your condition field per rule looks single-variable. Worth deciding now whether that's true and how you'd answer it.
+
+6.
