@@ -61,14 +61,16 @@ export async function POST(req: Request) {
     try {
       // Dynamically import to avoid crashing if SUPABASE_URL is missing
       const { db } = await import("@/lib/db");
-      const { data, error } = await db
-        .from("diagnostic_reports")
-        .select("transcript, vitals_snapshot, summary_text")
-        .eq("visit_id", visit_id)
-        .single();
-        
-      if (data) {
-        clinicalContext = `Summary: ${data.summary_text}\nVitals: ${data.vitals_snapshot}\nTranscript: ${data.transcript}`;
+      if (db) {
+        const { data, error } = await db
+          .from("diagnostic_reports")
+          .select("transcript, vitals_snapshot, summary_text")
+          .eq("visit_id", visit_id)
+          .single();
+          
+        if (data) {
+          clinicalContext = `Summary: ${data.summary_text}\nVitals: ${data.vitals_snapshot}\nTranscript: ${data.transcript}`;
+        }
       }
     } catch (dbError) {
       console.warn("Supabase not available or visit not found, using mock clinical context.");

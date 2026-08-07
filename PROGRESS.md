@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T20:10:13Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T22:40:12Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -186,14 +186,14 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+e274bad · 08 Aug 01:40 · Merge branch 'main' of origin/main integrating T1 Phase 1, T2 specialist, and T4 analytics
 f964454 · 08 Aug 01:34 · Merge branch 'main' of origin/main into local main
 421d604 · 08 Aug 01:32 · fix(auth): add safe build-time fallback for SESSION_SECRET
 68dcd8b · 08 Aug 01:32 · fix(web): remove duplicate history route group file and clean up routing
 b94dd5f · 08 Aug 01:29 · Merge branch 'main' of origin/main integrating T1 providers, T2 dashboard shell, and T3 pharmacy fulfillment
 8fc9f13 · 08 Aug 01:28 · feat(pharmacy): implement Lane T3 pharmacy queue, stock CRUD, live inventory routing, and delivery simulation
-2e422ce · 08 Aug 00:56 · feat(web): overhaul frontend design to match Cure Cloud spec & add dashboard shell
-7baea1d · 07 Aug 23:32 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
-2a9f7ea · 07 Aug 23:26 · T1: Implemented LLM, STT, TTS, and Translate providers
+37514a8 · 08 Aug 01:20 · fix(web): use unique composite key for Sidebar navigation items to prevent React key duplication warning
+53bfeb8 · 08 Aug 01:14 · fix(web): correct relative import path for lib/db in specialist route
 ```
 
 ---
