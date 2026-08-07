@@ -69,6 +69,12 @@ class VitalsRequest(BaseModel):
     visit_id: str
     phase: VitalsPhase
     readings: list[VitalReadingInput]
+    # The nurse enters vitals before the language picker on the consult screen,
+    # so /vitals is often the first call of a visit. These let it open the
+    # session itself rather than 404. Added after the freeze, additively —
+    # mirrored in packages/shared/http.ts.
+    patient_id: str | None = None
+    language: Language | None = None
 
 
 class VitalsResponse(BaseModel):
@@ -93,11 +99,27 @@ class TurnResponse(BaseModel):
 # --- GET /session/{visit_id}/state --------------------------------------
 
 
+class DoctorQuestion(BaseModel):
+    """
+    A doctor's MQTT question, already translated and voiced here on the edge.
+    The patient browser has no broker connection, so it collects these on the
+    2s session poll it is already making.
+    """
+
+    message_id: str
+    text_en: str
+    text_native: str
+    audio_url: str
+    asked_at: str
+
+
 class SessionState(BaseModel):
     visit_id: str
     phase: SessionPhase
     pending_finding: PendingFinding | None = None
     turn_count: int = 0
+    # Added after the freeze, additively — mirrored in packages/shared/http.ts.
+    doctor_question: DoctorQuestion | None = None
 
 
 # --- POST /intake/complete ----------------------------------------------

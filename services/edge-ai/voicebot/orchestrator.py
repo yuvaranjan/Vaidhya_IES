@@ -54,7 +54,23 @@ async def run_turn(session: Session, audio_bytes: bytes) -> TurnResponse:
     ))
 
     # 2. LLM decision (with 1 retry)
-    user_prompt = f"Session Phase: {session.phase}\nTurns:\n"
+    user_prompt = f"Session Phase: {session.phase}\n"
+
+    # The rules engine's branch, stated to the model rather than hoped for.
+    # This is what makes "bot goes straight to respiratory questions" a
+    # consequence of SpO2 91 instead of a coincidence.
+    if session.branch_tags:
+        user_prompt += (
+            "Vitals fired these branches — prioritise questions in these areas: "
+            + ", ".join(session.branch_tags)
+            + "\n"
+        )
+    if session.fired_flags:
+        user_prompt += "Abnormal findings: " + "; ".join(
+            f["description"] for f in session.fired_flags
+        ) + "\n"
+
+    user_prompt += "Turns:\n"
     for t in session.turns:
         user_prompt += f"{t.speaker}: {t.text_en}\n"
 
@@ -135,7 +151,11 @@ async def voice_doctor_question(session: Session, question_en: str) -> None:
     """
     Step 9: a doctor question arrives over MQTT, gets voiced to the patient in
     their language, and the answer is relayed back to the doctor as English text.
-    Same pipeline as run_turn, different entry point.
+
+    The implementation lives in consult.py because the return leg is published
+    from /voice/turn, not from here — keeping both halves in one module is what
+    stops the question and its answer drifting apart.
     """
-    # TODO(T1 task 11)
-    raise NotImplementedError("T1 task 11 — MQTT consult relay")
+    from consult import ask_patient
+
+    await ask_patient(session, question_en)

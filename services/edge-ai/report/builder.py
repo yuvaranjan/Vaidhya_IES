@@ -13,15 +13,15 @@ Neither replaces the other. About 30 lines for both.
 import json
 import logging
 import sqlite3
-import time
 import uuid
 
+from clock import now_iso
 from config import get_settings
-from contracts import IntakeCompleteResponse, UrgencyFlag
+from contracts import TOPIC_QUEUE_NEW, IntakeCompleteResponse, UrgencyFlag
 from mqtt_client import mqtt
-from contracts import TOPIC_QUEUE_NEW
 from providers.llm import get_llm
 from rules.engine import tier_for
+from sync.worker import enqueue, flush_outbox
 from voicebot.session import Session
 
 logger = logging.getLogger(__name__)
@@ -58,33 +58,73 @@ async def build_and_publish(session: Session) -> IntakeCompleteResponse:
 
     report_id = uuid.uuid4().hex
 
-    # 3. DB Insert to local SQLite
-    transcript_json = json.dumps([{"speaker": t.speaker, "text_en": t.text_en} for t in session.turns])
-    vitals_json = json.dumps(session.vitals)
-    tier_json = tier.model_dump_json()
+    # 3. Local SQLite is the system of record. Supabase is downstream of the
+    #    outbox — this function never waits on the network.
+    transcript = [
+        {"speaker": t.speaker, "text_en": t.text_en, "text_native": t.text_native}
+        for t in session.turns
+    ]
+    generated_at = now_iso()
+
+    report_row = {
+        "report_id": report_id,
+        "visit_id": session.visit_id,
+        "transcript": transcript,
+        "vitals_snapshot": session.vitals,
+        "urgency_tier": tier.model_dump(),
+        "chief_complaint": chief_complaint,
+        "summary_text": summary_text,
+        "generated_at": generated_at,
+    }
 
     with sqlite3.connect(settings.edge_db_path) as conn:
-        conn.execute("UPDATE visits SET status = 'awaiting_doctor' WHERE visit_id = ?", (session.visit_id,))
         conn.execute(
-            "INSERT INTO diagnostic_reports (report_id, visit_id, transcript, vitals_snapshot, urgency_tier, chief_complaint, summary_text, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (report_id, session.visit_id, transcript_json, vitals_json, tier_json, chief_complaint, summary_text, str(time.time()))
+            "update visits set status = 'awaiting_doctor' where visit_id = ?",
+            (session.visit_id,),
         )
-        
-        # Write to outbox
-        payload = json.dumps({
-            "report_id": report_id,
-            "visit_id": session.visit_id,
-            "chief_complaint": chief_complaint,
-            "summary_text": summary_text,
-            "urgency_tier": json.loads(tier_json)
-        })
         conn.execute(
-            "INSERT INTO outbox (entity, entity_id, payload, created_at) VALUES (?, ?, ?, ?)",
-            ("diagnostic_reports", report_id, payload, str(time.time()))
+            "insert into diagnostic_reports (report_id, visit_id, transcript, "
+            "vitals_snapshot, urgency_tier, chief_complaint, summary_text, "
+            "generated_at) values (?,?,?,?,?,?,?,?)",
+            (
+                report_id,
+                session.visit_id,
+                json.dumps(transcript),
+                json.dumps(session.vitals),
+                tier.model_dump_json(),
+                chief_complaint,
+                summary_text,
+                generated_at,
+            ),
         )
 
-    # 4. MQTT Publish (will silently drop or queue if disconnected)
-    mqtt.publish(TOPIC_QUEUE_NEW, {"visit_id": session.visit_id, "status": "awaiting_doctor", "urgency": tier.tier}, retain=True)
+        # The status change and the report are two separate rows in the queue so
+        # the doctor's list flips to awaiting_doctor even if the report itself
+        # is rejected downstream.
+        enqueue(
+            conn,
+            "visits",
+            session.visit_id,
+            {"visit_id": session.visit_id, "status": "awaiting_doctor"},
+        )
+        enqueue(conn, "diagnostic_reports", report_id, report_row)
+
+    session.phase = "complete"
+
+    # 4. Best-effort immediate drain, so an online demo shows the queue update
+    #    instantly instead of waiting up to a tick. Offline this fails in
+    #    milliseconds and the backlog stays queued.
+    try:
+        await flush_outbox()
+    except Exception:
+        logger.info("intake/complete: immediate flush failed, left queued")
+
+    # 5. MQTT publish for the live queue update (no-op without a broker).
+    mqtt.publish(
+        TOPIC_QUEUE_NEW,
+        {"visit_id": session.visit_id, "status": "awaiting_doctor", "urgency": tier.tier},
+        retain=True,
+    )
 
     return IntakeCompleteResponse(
         report_id=report_id,
