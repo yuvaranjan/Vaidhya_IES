@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T19:41:29Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T19:44:07Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -172,6 +172,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+2b95688 · 08 Aug 01:11 · T1: Finished Phase 1 - Orchestrator, Specialist UI, MQTT stub, Report Builder
 3788e9f · 08 Aug 01:09 · T4: extend translation cache, build live analytics dashboard, apply Supabase seed
 6209545 · 08 Aug 01:00 · feat(web): add Patient eRx view & nearby pharmacy stock selector
 2e422ce · 08 Aug 00:56 · feat(web): overhaul frontend design to match Cure Cloud spec & add dashboard shell
@@ -179,7 +180,6 @@ Last self-reported update: 2026-08-08T01:30:00Z
 2a9f7ea · 07 Aug 23:26 · T1: Implemented LLM, STT, TTS, and Translate providers
 bd33967 · 07 Aug 23:24 · Create design_description.md
 7379957 · 07 Aug 23:03 · Stop adding a Claude co-author trailer to commits and PRs
-f02a62f · 07 Aug 23:00 · Give each lane a single-prompt entry point and a task→architecture map
 ```
 
 ---

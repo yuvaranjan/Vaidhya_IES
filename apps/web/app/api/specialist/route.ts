@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     let clinicalContext = "Patient complains of chest pain and shortness of breath. HR 110, BP 140/90.";
     try {
       // Dynamically import to avoid crashing if SUPABASE_URL is missing
-      const { db } = await import("../../../../lib/db");
+      const { db } = await import("@/lib/db");
       const { data, error } = await db
         .from("diagnostic_reports")
         .select("transcript, vitals_snapshot, summary_text")
