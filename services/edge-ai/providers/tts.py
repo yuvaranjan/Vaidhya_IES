@@ -5,7 +5,11 @@ T1 task 4 (~1h). Writes an mp3 into AUDIO_DIR and returns the URL path that
 main.py serves statically, e.g. "/audio/8f3a....mp3".
 """
 
+import os
+import uuid
 from typing import Protocol
+
+import edge_tts
 
 from config import get_settings
 
@@ -26,17 +30,23 @@ class TTSProvider(Protocol):
 
     async def healthy(self) -> bool: ...
 
-
 class EdgeTTSProvider:
     def __init__(self) -> None:
         self.settings = get_settings()
+        os.makedirs(self.settings.audio_dir, exist_ok=True)
 
     async def speak(self, text: str, language: str) -> str:
-        # TODO(T1): edge_tts.Communicate(text, VOICES[language]).save(path)
-        raise NotImplementedError("T1 task 4")
+        voice = VOICES.get(language, VOICES["en"])
+        filename = f"{uuid.uuid4().hex}.mp3"
+        filepath = os.path.join(self.settings.audio_dir, filename)
+        
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(filepath)
+        
+        return f"/audio/{filename}"
 
     async def healthy(self) -> bool:
-        return False
+        return True
 
 
 def get_tts() -> TTSProvider:

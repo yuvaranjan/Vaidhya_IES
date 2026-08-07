@@ -4,13 +4,13 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T17:33:43Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T17:56:36Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Scaffold landed; next is the LLM provider against LM Studio | `agents/status/T1.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | TranslateProvider implemented, moving to Session store | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Scaffold landed; next is patient login | `agents/status/T2.md` |
 | **T3** | unassigned | ⚪ not started | unassigned | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Starter seed written but not yet applied to a real Supabase project | `agents/status/T4.md` |
@@ -72,16 +72,20 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - Rules engine condition parser (`rules/engine.py`) handles `<90`, `>=180`, `==true` without `eval`. Tiering: 0 flags routine, 1 elevated, 2+ urgent.
 - Session store persists to SQLite (`edge.db`) so a uvicorn restart mid-demo survives.
 - All `pip install -r requirements.txt` deps verified installing on Python 3.14.
+- Task 2 — `LLMProvider` against LM Studio's OpenAI-compatible endpoint, with Groq fallback on `EDGE_LLM_TIMEOUT_MS`. Note: verified code structurally, but cannot fully test fallback as `GROQ_API_KEY` is empty in `.env`.
+- Task 3 — `STTProvider` on Groq Whisper turbo. Concurrent calls for native transcript and English translation. Note: Requires `GROQ_API_KEY`.
+- Task 4 — `TTSProvider` on edge-tts. Synthesizes using regional voices and returns static `/audio/*.mp3` paths.
+- Task 5 — `TranslateProvider` implemented using SQLite `question_bank` lookup with LLM fallback via `LLMProvider`.
 
 **In progress**
 
-- Nothing yet — scaffold just landed.
+- Nothing yet — TranslateProvider just landed.
 
 **Next**
 
 - _nothing planned — this lane needs a plan_
 
-Last self-reported update: 2026-08-07T22:45:00Z
+Last self-reported update: 2026-08-07T23:23:00Z
 
 ### T2 · Yadav · `apps/web`
 
@@ -143,14 +147,14 @@ Last self-reported update: 2026-08-07T22:45:00Z
 ## Recent commits
 
 ```
-8196458 · 07 Aug 23:00 · Give each lane a single-prompt entry point and a task→architecture map
-922c3b2 · 07 Aug 22:54 · Regenerate the board now that status files are committed
-6f6f75a · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
-6309026 · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
-30bf9dc · 07 Aug 22:36 · Move all planning documents into Docs/
+7379957 · 07 Aug 23:03 · Stop adding a Claude co-author trailer to commits and PRs
+f02a62f · 07 Aug 23:00 · Give each lane a single-prompt entry point and a task→architecture map
+a6fd94f · 07 Aug 22:54 · Regenerate the board now that status files are committed
+529a067 · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
+bf4420a · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
+df51bc7 · 07 Aug 22:36 · Move all planning documents into Docs/
 dd328f2 · 07 Aug 21:40 · Updated questions
 9d59d23 · 07 Aug 18:46 · Update Problem_Statement.md
-afcbff5 · 07 Aug 18:31 · Update QuestionAnswer.md with new questions
 ```
 
 ---
