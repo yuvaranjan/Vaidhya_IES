@@ -4,16 +4,16 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T23:10:05Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T23:46:41Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Cross-lane integration pass done — /vitals fires rules, outbox drains to Supabase, consult relay live. Next is a real voice turn with audio. | `agents/status/T1.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Cross-lane integration pass done — /vitals fires rules, outbox drains to Supabase, consult relay live. Next is a real voice turn with audio. ⚠️ _behind_ | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _4h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
-| **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. | `agents/status/T4.md` |
+| **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
 
 > ⚠️ means that lane's code has been committed more recently than its status file — the board is behind the work. Whoever owns it: update your file.
 
@@ -191,14 +191,14 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+a893242 · 08 Aug 04:40 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
 654b69c · 08 Aug 04:35 · feat(analytics): add Predictive ML disease outbreak forecasting engine with 4W horizon projections
+c238359 · 08 Aug 04:31 · Fix doctor clarification questions and prescription auto-redirect
+2e04868 · 08 Aug 02:51 · fix(web): reconcile T2/T3 lanes onto real data, T2 UI preserved
+af200b3 · 08 Aug 02:49 · feat(edge-ai): implement /vitals rules engine, outbox sync, and MQTT relay
 6e28f36 · 08 Aug 04:20 · feat(analytics): overhaul regional disease surveillance dashboard UI with fallback generator
 f48ef51 · 08 Aug 04:10 · fix(web): add null checks for db client in analytics page and specialist route
 e274bad · 08 Aug 01:40 · Merge branch 'main' of origin/main integrating T1 Phase 1, T2 specialist, and T4 analytics
-f964454 · 08 Aug 01:34 · Merge branch 'main' of origin/main into local main
-421d604 · 08 Aug 01:32 · fix(auth): add safe build-time fallback for SESSION_SECRET
-68dcd8b · 08 Aug 01:32 · fix(web): remove duplicate history route group file and clean up routing
-b94dd5f · 08 Aug 01:29 · Merge branch 'main' of origin/main integrating T1 providers, T2 dashboard shell, and T3 pharmacy fulfillment
 ```
 
 ---
