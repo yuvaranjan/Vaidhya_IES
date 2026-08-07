@@ -4,14 +4,14 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T22:40:12Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T22:50:08Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
 | **T1** | Yuvaranjan | 🔵 in progress | Phase 1 complete! Specialist AI built. Moving to Phase 2 (offline sync) or wrapping up. | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _1h behind_ | `agents/status/T2.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _3h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. | `agents/status/T4.md` |
 
@@ -186,6 +186,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+f48ef51 · 08 Aug 04:10 · fix(web): add null checks for db client in analytics page and specialist route
 e274bad · 08 Aug 01:40 · Merge branch 'main' of origin/main integrating T1 Phase 1, T2 specialist, and T4 analytics
 f964454 · 08 Aug 01:34 · Merge branch 'main' of origin/main into local main
 421d604 · 08 Aug 01:32 · fix(auth): add safe build-time fallback for SESSION_SECRET
@@ -193,7 +194,6 @@ f964454 · 08 Aug 01:34 · Merge branch 'main' of origin/main into local main
 b94dd5f · 08 Aug 01:29 · Merge branch 'main' of origin/main integrating T1 providers, T2 dashboard shell, and T3 pharmacy fulfillment
 8fc9f13 · 08 Aug 01:28 · feat(pharmacy): implement Lane T3 pharmacy queue, stock CRUD, live inventory routing, and delivery simulation
 37514a8 · 08 Aug 01:20 · fix(web): use unique composite key for Sidebar navigation items to prevent React key duplication warning
-53bfeb8 · 08 Aug 01:14 · fix(web): correct relative import path for lib/db in specialist route
 ```
 
 ---
