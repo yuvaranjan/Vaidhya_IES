@@ -5,6 +5,12 @@ export type CaseRow = {
   case_count: number;
   rolling_baseline: number | null;
   is_anomaly: boolean | null;
+  predicted_case_count?: number | null;
+  forecast_upper?: number | null;
+  forecast_lower?: number | null;
+  is_forecast?: boolean;
+  outbreak_risk_level?: "low" | "moderate" | "high";
+  outbreak_probability?: number;
 };
 
 export const REGION_LABELS: Record<string, string> = {
@@ -51,6 +57,7 @@ export function generateMockAnalyticsRows(): CaseRow[] {
   const rows: CaseRow[] = [];
   const anchorDate = new Date("2026-08-03");
 
+  // 1. Historical 26 Weeks
   for (let w = 1; w <= 26; w++) {
     const d = new Date(anchorDate);
     d.setDate(d.getDate() - (26 - w) * 7);
@@ -58,18 +65,15 @@ export function generateMockAnalyticsRows(): CaseRow[] {
 
     for (const r of REGIONS) {
       for (const dis of DISEASES) {
-        // Deterministic pseudo-random variation
         const pseudoWave = Math.sin((w + r.id.length + dis.id.length) * 0.5);
         let caseCount = Math.round((dis.base + pseudoWave * dis.amp) * r.mult);
 
-        // Specific anomaly: Dengue outbreak in Ernakulam on Week 24
         let isAnomaly = false;
         if (r.id === "reg_ernakulam" && dis.id === "dengue" && w === 24) {
           caseCount = 38; // 3.2x baseline spike
           isAnomaly = true;
         }
 
-        // Rolling baseline (average of trailing 4 weeks)
         let baseline: number | null = null;
         if (w >= 4) {
           const pastCounts = rows
@@ -93,6 +97,61 @@ export function generateMockAnalyticsRows(): CaseRow[] {
           case_count: caseCount,
           rolling_baseline: baseline,
           is_anomaly: isAnomaly,
+          predicted_case_count: caseCount, // historical matches actual
+          is_forecast: false,
+          outbreak_risk_level: isAnomaly ? "high" : caseCount > 20 ? "moderate" : "low",
+          outbreak_probability: isAnomaly ? 92 : Math.min(85, Math.round(caseCount * 2.5)),
+        });
+      }
+    }
+  }
+
+  // 2. Predictive ML 4-Week Future Horizon (Weeks 27 to 30)
+  for (let fw = 1; fw <= 4; fw++) {
+    const d = new Date(anchorDate);
+    d.setDate(d.getDate() + fw * 7);
+    const dateStr = d.toISOString().split("T")[0];
+
+    for (const r of REGIONS) {
+      for (const dis of DISEASES) {
+        // Calculate trailing trend from last 4 weeks (weeks 23-26)
+        const recentRows = rows
+          .filter(row => row.region_id === r.id && row.disease_category === dis.id && !row.is_forecast)
+          .slice(-4);
+        
+        const recentAvg = recentRows.reduce((a, b) => a + b.case_count, 0) / (recentRows.length || 1);
+        const lastVal = recentRows[recentRows.length - 1]?.case_count || recentAvg;
+        
+        // Holt-Winters / ARMA Trend slope simulation
+        let trendSlope = (lastVal - recentAvg) * 0.4;
+        let predictedVal = Math.max(2, Math.round(lastVal + trendSlope * fw));
+
+        // High predictive risk for Dengue in Ernakulam and Malappuram due to post-surge decay/secondary wave
+        if (r.id === "reg_ernakulam" && dis.id === "dengue") {
+          predictedVal = Math.round(32 - fw * 4); // Secondary wave trajectory (28, 24, 20, 16)
+        } else if (r.id === "reg_malappuram" && dis.id === "respiratory_infection") {
+          predictedVal = Math.round(26 + fw * 3); // Upward seasonal outbreak projection
+        }
+
+        const upperBound = Math.round(predictedVal * 1.25 + 3);
+        const lowerBound = Math.max(1, Math.round(predictedVal * 0.75 - 2));
+
+        const riskProb = Math.min(96, Math.round((predictedVal / (dis.base * r.mult)) * 45));
+        const riskLevel = riskProb > 75 ? "high" : riskProb > 50 ? "moderate" : "low";
+
+        rows.push({
+          region_id: r.id,
+          disease_category: dis.id,
+          week_start_date: dateStr,
+          case_count: predictedVal, // for chart continuity
+          rolling_baseline: Math.round(recentAvg * 10) / 10,
+          is_anomaly: riskLevel === "high",
+          predicted_case_count: predictedVal,
+          forecast_upper: upperBound,
+          forecast_lower: lowerBound,
+          is_forecast: true,
+          outbreak_risk_level: riskLevel,
+          outbreak_probability: riskProb,
         });
       }
     }
