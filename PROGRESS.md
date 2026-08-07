@@ -4,18 +4,16 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T17:24:14Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T17:24:36Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Scaffold landed; next is the LLM provider against LM Studio ⚠️ _never committed_ | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Scaffold landed; next is patient login ⚠️ _never committed_ | `agents/status/T2.md` |
-| **T3** | unassigned | ⚪ not started | unassigned ⚠️ _never committed_ | `agents/status/T3.md` |
-| **T4** | unassigned | 🔵 in progress | Starter seed written but not yet applied to a real Supabase project ⚠️ _never committed_ | `agents/status/T4.md` |
-
-> ⚠️ means that lane's code has been committed more recently than its status file — the board is behind the work. Whoever owns it: update your file.
+| **T1** | Yuvaranjan | 🔵 in progress | Scaffold landed; next is the LLM provider against LM Studio | `agents/status/T1.md` |
+| **T2** | Yadav | 🔵 in progress | Scaffold landed; next is patient login | `agents/status/T2.md` |
+| **T3** | unassigned | ⚪ not started | unassigned | `agents/status/T3.md` |
+| **T4** | unassigned | 🔵 in progress | Starter seed written but not yet applied to a real Supabase project | `agents/status/T4.md` |
 
 ## Demo readiness — the §17 set-piece
 
@@ -145,6 +143,7 @@ Last self-reported update: 2026-08-07T22:45:00Z
 ## Recent commits
 
 ```
+6f6f75a · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
 6309026 · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
 30bf9dc · 07 Aug 22:36 · Move all planning documents into Docs/
 dd328f2 · 07 Aug 21:40 · Updated questions
@@ -152,7 +151,6 @@ dd328f2 · 07 Aug 21:40 · Updated questions
 afcbff5 · 07 Aug 18:31 · Update QuestionAnswer.md with new questions
 93bab18 · 07 Aug 18:24 · Update QuestionAnswer.md
 fe802d7 · 07 Aug 18:23 · Update QuestionAnswer.md
-1600542 · 07 Aug 18:14 · Update QuestionAnswer.md with Q&A responses
 ```
 
 ---
