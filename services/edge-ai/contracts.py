@@ -69,11 +69,25 @@ class VitalsRequest(BaseModel):
     visit_id: str
     phase: VitalsPhase
     readings: list[VitalReadingInput]
+    # The nurse enters vitals before the language picker on the consult screen,
+    # so /vitals is often the first call of a visit. These let it open the
+    # session itself rather than 404. Added after the freeze, additively —
+    # mirrored in packages/shared/http.ts.
+    patient_id: str | None = None
+    language: Language | None = None
 
 
 class VitalsResponse(BaseModel):
     ok: bool
     fired_flags: list[UrgencyFlag] = Field(default_factory=list)
+
+
+# --- POST /voice/turn/text  (typed-answer fallback, R7) ------------------
+
+
+class VoiceTurnTextRequest(BaseModel):
+    visit_id: str
+    text_en: str
 
 
 # --- POST /voice/turn ---------------------------------------------------
@@ -93,11 +107,27 @@ class TurnResponse(BaseModel):
 # --- GET /session/{visit_id}/state --------------------------------------
 
 
+class DoctorQuestion(BaseModel):
+    """
+    A doctor's MQTT question, already translated and voiced here on the edge.
+    The patient browser has no broker connection, so it collects these on the
+    2s session poll it is already making.
+    """
+
+    message_id: str
+    text_en: str
+    text_native: str
+    audio_url: str
+    asked_at: str
+
+
 class SessionState(BaseModel):
     visit_id: str
     phase: SessionPhase
     pending_finding: PendingFinding | None = None
     turn_count: int = 0
+    # Added after the freeze, additively — mirrored in packages/shared/http.ts.
+    doctor_question: DoctorQuestion | None = None
 
 
 # --- POST /intake/complete ----------------------------------------------
@@ -120,6 +150,28 @@ class IntakeCompleteResponse(BaseModel):
 class ConsultAskRequest(BaseModel):
     visit_id: str
     question_en: str
+
+
+# --- GET/POST /settings/model  (runtime model selection) -----------------
+
+ModelProvider = Literal["lmstudio", "groq"]
+
+
+class ModelOption(BaseModel):
+    id: str
+    provider: ModelProvider
+    label: str
+
+
+class ModelsResponse(BaseModel):
+    current: str
+    provider: ModelProvider
+    available: list[ModelOption] = Field(default_factory=list)
+
+
+class SetModelRequest(BaseModel):
+    model: str
+    provider: ModelProvider
 
 
 # --- GET /health --------------------------------------------------------

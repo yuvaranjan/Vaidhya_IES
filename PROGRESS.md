@@ -4,14 +4,14 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T23:05:37Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T23:10:05Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Phase 1 complete! Specialist AI built. Moving to Phase 2 (offline sync) or wrapping up. | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _3h behind_ | `agents/status/T2.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Cross-lane integration pass done — /vitals fires rules, outbox drains to Supabase, consult relay live. Next is a real voice turn with audio. | `agents/status/T1.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _4h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. | `agents/status/T4.md` |
 
@@ -19,7 +19,7 @@ Generated 2026-08-07T23:05:37Z from `agents/status/*.md` · protocol in [agents/
 
 ## Demo readiness — the §17 set-piece
 
-**V1 path: 4 / 9 steps demonstrable.** All phases: 5 / 13.
+**V1 path: 6 / 9 steps demonstrable.** All phases: 8 / 13.
 
 A step counts only if it can be performed live, right now, in front of a judge.
 
@@ -28,10 +28,10 @@ A step counts only if it can be performed live, right now, in front of a judge.
 | 1 | Unplug Node A's wifi, on camera ⭐ | T1 | v2 | — |
 | 2 | Patient logs in, nurse enters vitals: SpO2 91, temp 38.9 | T2 | v1 | ✅ (T2) |
 | 3 | Voicebot greets and converses in Malayalam | T1 | v1 | — |
-| 4 | Rules engine visibly branches on SpO2 91 | T1 | v1 | — |
-| 5 | Nurse-finding request times out gracefully | T1 | v1 | — |
+| 4 | Rules engine visibly branches on SpO2 91 | T1 | v1 | ✅ (T1) |
+| 5 | Nurse-finding request times out gracefully | T1 | v1 | ✅ (T1) |
 | 6 | Report generates — Urgent (2 flags) — with no internet ⭐ | T1 | v1 | — |
-| 7 | Plug wifi back in — outbox flushes, patient appears in the doctor's queue tagged Urgent ⭐ | T1 | v2 | — |
+| 7 | Plug wifi back in — outbox flushes, patient appears in the doctor's queue tagged Urgent ⭐ | T1 | v2 | ✅ (T1) |
 | 8 | Doctor clicks Consult Specialist AI | T1 | v1 | — |
 | 9 | Doctor types a question over MQTT; voicebot speaks it in Malayalam | T2 | v1 | ✅ (T2) |
 | 10 | Doctor issues a prescription; it appears immediately in the patient portal | T3 | v1 | ✅ (T3) |
@@ -43,15 +43,18 @@ A step counts only if it can be performed live, right now, in front of a judge.
 
 ## Blockers
 
-- **T1** — Nobody has created the Supabase project yet. Until `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` exist, task 10 (report write) cannot be finished.
-- **T1** — No HiveMQ cluster yet, so task 11 (MQTT) is unstartable and demo step 7 with it.
+- **T1** — Still no HiveMQ cluster. `MQTT_URL` is the placeholder `your-cluster...`, so the broker path is written but unproven. The HTTP fallback covers the demo on one laptop; two laptops needs a real broker.
 - **T2** — Supabase project does not exist yet, so login cannot be wired to real rows. Until then, work against `lib/mockAi.ts` and hardcode a patient id.
 
 ## Notes from other lanes — read before you write code
 
-- **T1** — **T2:** every unimplemented endpoint returns `501` with `{"error":"not_implemented","owner":"T1","task":"<number>"}`. Point the real client at the live port whenever you like — you will get a clean, readable failure, not a connection refused.
-- **T1** — **T2:** the contract in `packages/shared/http.ts` is mirrored exactly in `services/edge-ai/contracts.py`. It has not changed since it was frozen.
-- **T1** — **T2:** the nurse answers a pending finding through `POST /vitals` with `phase: "on_demand"` — there is no separate endpoint.
+- **T1** — **Everyone: read [agents/integration-log.md](../integration-log.md).** This pass deliberately crossed lane boundaries at the owner's direction, and that file is the full per-lane record — including two things that will surprise T2 (the doctor login password is `vaidhya123`, not `doctor123`; the doctor screens now read `lib/queue.ts`, not `lib/mockQueue.ts`) and a bug that made T3's Supabase path silently serve mock rows. The bullets below are the short version.
+- **T1** — **Everyone:** the edge service no longer returns `501` for anything. `/vitals` and `/consult/ask` are implemented; `/sync/status` and `/sync/flush` are new.
+- **T1** — **T2:** the contract in `packages/shared/http.ts` is mirrored exactly in `services/edge-ai/contracts.py`. One additive change since the freeze — `SessionState.doctor_question`. Poll it and play `audio_url` to voice the doctor's question to the patient; the patient's next `/voice/turn` publishes the answer back.
+- **T1** — **T2:** the nurse answers a pending finding through `POST /vitals` with `phase: "on_demand"` — there is no separate endpoint. It now returns `fired_flags`, which is what the "fired rule: SpO2 < 92" badge should render.
+- **T1** — **T2:** `getMqttClient()` now returns `null` instead of throwing when `NEXT_PUBLIC_MQTT_URL` is unset. It was taking the whole doctor queue down. All three call sites are guarded and the consult box falls back to HTTP.
+- **T1** — **T3:** three of your routes embedded `patients(*)` on `prescriptions`. There is no such foreign key — it goes through `visits` — so PostgREST rejected the query and your `catch` served mock rows stamped with real ids. Fixed in `nearby`, `queue` and `prescription` by embedding `visits(patient_id, patients(*))`, and the swallowed errors now log. Worth checking the rest of the lane for the same shape.
+- **T1** — **T4:** `db/edge_schema.sql` gained a `branching_rules` table seeded with the same 7 rules as `002_seed.sql`. If you change a rule there, change it here too — the edge cannot reach Supabase to read them during the offline segment.
 - **T2** — **Everyone:** doctor routes are `/doctor/login`, `/doctor/queue`, `/doctor/consult/[visitId]`, `/doctor/prescribe/[visitId]`. Not the flat `(doctor)/login` the architecture doc shows — two route groups both resolving to `/login` is a Next.js build error.
 - **T2** — **Everyone:** the theme lives in `globals.css`, not `tailwind.config.ts`. Tailwind v4 is CSS-first. Same token names as the build plan.
 - **T2** — **T3:** agree with me on directory ownership under `apps/web/app/` before you add files. Proposal: you take `(patient)/prescription/**`, `(pharmacy)/**` and `api/pharmacies/**`; I take the rest.
@@ -73,30 +76,32 @@ A step counts only if it can be performed live, right now, in front of a judge.
 
 **Done**
 
-- FastAPI service boots on `:8000` with CORS for `:3000`. Verified: `uvicorn main:app --port 8000` then `curl /health` returns `{"llm":"down","stt":"down","tts":"down","translate":"ok","mqtt":"down"}` — the downs are correct, those providers are still stubs.
+- FastAPI service boots on `:8000` with CORS for `:3000`. `GET /health` probes all four providers plus MQTT.
 - `GET /session/{visit_id}/state` is live and returns a valid `SessionState` for an unknown visit instead of erroring. T2 can poll it today.
-- Nurse-finding state machine (`voicebot/session.py :: resolve_pending`) implemented lazily from timestamps — no asyncio timers anywhere in the service.
+- Nurse-finding state machine (`voicebot/session.py :: resolve_pending`) implemented lazily from timestamps — no asyncio timers anywhere in the service. Giving up now writes the reading as `not_obtained` instead of dropping it (`_mark_not_obtained`).
 - Rules engine condition parser (`rules/engine.py`) handles `<90`, `>=180`, `==true` without `eval`. Tiering: 0 flags routine, 1 elevated, 2+ urgent.
 - Session store persists to SQLite (`edge.db`) so a uvicorn restart mid-demo survives.
-- All `pip install -r requirements.txt` deps verified installing on Python 3.14.
-- Task 2 — `LLMProvider` against LM Studio's OpenAI-compatible endpoint, with Groq fallback on `EDGE_LLM_TIMEOUT_MS`. Note: verified code structurally, but cannot fully test fallback as `GROQ_API_KEY` is empty in `.env`.
-- Task 3 — `STTProvider` on Groq Whisper turbo. Concurrent calls for native transcript and English translation. Note: Requires `GROQ_API_KEY`.
-- Task 4 — `TTSProvider` on edge-tts. Synthesizes using regional voices and returns static `/audio/*.mp3` paths.
-- Task 5 — `TranslateProvider` implemented using SQLite `question_bank` lookup with LLM fallback via `LLMProvider`.
-- Task 7 — Voicebot turn loop implemented. Full conversational orchestrator with JSON schema forced reasoning, STT/TTS pipelining, and a safe one-retry fallback if the LLM crashes.
-- Task 10 — Report builder implemented. Safely writes to the local SQLite outbox when Supabase is disconnected/unconfigured.
-- Task 11 — MQTT client implemented using Paho MQTT. Degrades gracefully to local logging if the HiveMQ URL is missing.
-- **Specialist AI Slice** — `/api/specialist` route implemented using Groq's structured JSON output, with a `SpecialistPanel` UI mounted on the doctor's consult page. Works perfectly with our mocked offline clinical data.
+- Task 2 — `LLMProvider` against LM Studio's OpenAI-compatible endpoint, with Groq fallback on `EDGE_LLM_TIMEOUT_MS`. Verified live: with LM Studio down, the Groq fallback carries the load and logs `[FALLBACK]`.
+- Task 3 — `STTProvider` on Groq Whisper turbo. **Not yet exercised with real audio.**
+- Task 4 — `TTSProvider` on edge-tts. Verified live — `/session/start` returns a playable `/audio/*.mp3` of the Malayalam greeting.
+- Task 5 — `TranslateProvider`, `question_bank` cache then LLM. **Fixed:** the prompt passed the language *code* (`ml`), which a small model answers by rephrasing in English. It now names the language and its script, refuses to cache a result that is still Latin script, and short-circuits `en`. Verified: "Do you have chest pain when you breathe in?" → Malayalam and Tamil, both in native script.
+- Task 7 — Voicebot turn loop. The orchestrator now receives the rules engine's `branch_tags` and fired flags in its prompt, so the branch on SpO2 91 is caused rather than hoped for.
+- **Task 9 — `POST /vitals` implemented (`vitals_store.py`). This was the hole.** Readings persist, rules fire, flags dedupe per visit, `phase: "on_demand"` releases the pending finding. Rules live in `branching_rules` in edge.db (added to `db/edge_schema.sql`), not Supabase, so they fire with the wifi out. Verified: SpO2 91 + temp 38.9 → 2 flags → `urgent`, and re-posting the same vitals adds none.
+- Task 10 — Report builder writes locally and enqueues; it never waits on the network. Verified: `/intake/complete` returned `urgency_tier: {tier: "urgent", flag_count: 2}`. **Step 6 is NOT claimed yet, deliberately.** The urgency half is fully offline — the rules come from local SQLite and the tiering is arithmetic. The *narrative summary* calls the LLM, and with LM Studio down that falls through to Groq, which needs the internet. Start LM Studio and step 6 is honestly offline; until then, unplugging the wifi produces a report with a placeholder summary and correct urgency.
+- **Task 11 — MQTT wired end to end.** `mqtt.connect()` now actually runs, from a FastAPI lifespan. Upgraded to paho `CallbackAPIVersion.VERSION2`. `_on_message` hands off to the event loop with `run_coroutine_threadsafe` and drives the real relay in `consult.py`: translate → TTS → park on the session. The patient browser collects it as `SessionState.doctor_question` on its existing 2s poll; the answer publishes back from `/voice/turn`. `/consult/ask` is the same path over HTTP, which is the single-laptop fallback if HiveMQ is blocked at the venue.
+- **Phase 2 — outbox sync worker (`sync/worker.py`).** Ticks every 10s, upserts in FK-safe order, stops at the first failure so children never precede parents, and marks rows synced only on a confirmed write. `GET /sync/status` exposes the pending count — that is the number to put on screen when the wifi comes back. **Verified against the live Supabase**: 9 queued rows drained, `pending` went 9 → 0, and the rows were confirmed present over the REST API.
+- **Specialist AI Slice** — `/api/specialist` route with a `SpecialistPanel` on the doctor's consult page. Replaced the unresolvable dynamic `import("@/lib/db")` with a static import and a null check; `tsc --noEmit` is clean.
+- **Contract change, announced:** `SessionState` gained an optional `doctor_question`. Mirrored in `packages/shared/http.ts` and `contracts.py` in the same edit. Purely additive — nothing that ignores it breaks.
 
 **In progress**
 
-- None. Phase 1 is done for this lane!
+- Nothing. The lane's seams are closed.
 
 **Next**
 
 - _nothing planned — this lane needs a plan_
 
-Last self-reported update: 2026-08-07T23:48:00Z
+Last self-reported update: 2026-08-08T02:40:00Z
 
 ### T2 · Yadav · `apps/web`
 
@@ -186,6 +191,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+654b69c · 08 Aug 04:35 · feat(analytics): add Predictive ML disease outbreak forecasting engine with 4W horizon projections
 6e28f36 · 08 Aug 04:20 · feat(analytics): overhaul regional disease surveillance dashboard UI with fallback generator
 f48ef51 · 08 Aug 04:10 · fix(web): add null checks for db client in analytics page and specialist route
 e274bad · 08 Aug 01:40 · Merge branch 'main' of origin/main integrating T1 Phase 1, T2 specialist, and T4 analytics
@@ -193,7 +199,6 @@ f964454 · 08 Aug 01:34 · Merge branch 'main' of origin/main into local main
 421d604 · 08 Aug 01:32 · fix(auth): add safe build-time fallback for SESSION_SECRET
 68dcd8b · 08 Aug 01:32 · fix(web): remove duplicate history route group file and clean up routing
 b94dd5f · 08 Aug 01:29 · Merge branch 'main' of origin/main integrating T1 providers, T2 dashboard shell, and T3 pharmacy fulfillment
-8fc9f13 · 08 Aug 01:28 · feat(pharmacy): implement Lane T3 pharmacy queue, stock CRUD, live inventory routing, and delivery simulation
 ```
 
 ---

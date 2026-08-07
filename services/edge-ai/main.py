@@ -10,6 +10,9 @@ exactly what is still missing.
 T1 tests with curl and requests.http. T1 never opens a browser.
 """
 
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, UploadFile
@@ -22,15 +25,44 @@ from contracts import (
     ConsultAskRequest,
     HealthResponse,
     IntakeCompleteRequest,
+    ModelOption,
+    ModelsResponse,
     SessionStartRequest,
     SessionState,
+    SetModelRequest,
     VitalsRequest,
+    VitalsResponse,
+    VoiceTurnTextRequest,
 )
 from voicebot.session import as_contract, resolve_pending, store
 
 settings = get_settings()
 
-app = FastAPI(title="Vaidhya edge-ai", version="0.1.0")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("edge-ai")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """
+    Two long-lived things start here and nowhere else: the MQTT connection and
+    the outbox drain. Both are designed to be started unconditionally — with no
+    broker and no Supabase they degrade to local logging rather than failing,
+    so the offline demo path takes no special casing.
+    """
+    from mqtt_client import mqtt
+    from sync.worker import sync_loop
+
+    mqtt.connect(asyncio.get_running_loop())
+    task = asyncio.create_task(sync_loop())
+
+    yield
+
+    task.cancel()
+    mqtt.stop()
+
+
+app = FastAPI(title="Vaidhya edge-ai", version="0.1.0", lifespan=lifespan)
 
 # The patient browser is on the same laptop, on :3000.
 app.add_middleware(
@@ -52,6 +84,65 @@ def not_implemented(task: str) -> JSONResponse:
         status_code=501,
         content={"error": "not_implemented", "owner": "T1", "task": task},
     )
+
+
+# ---------------------------------------------------------------------------
+# GET/POST /settings/model — runtime model selection.
+#
+# The tiny local model is the whole offline story, but it is not reliably
+# instruction-following (verified: the same conversation, run twice,
+# produced different turn counts). This lets a nurse pick a bigger model —
+# a larger LM Studio download, or Groq directly — for the rest of the
+# session, no restart. Options are queried live rather than hardcoded, so
+# the list only ever shows what is actually reachable right now.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/settings/models", response_model=ModelsResponse)
+async def list_models():
+    import httpx
+
+    from model_settings import get_active
+
+    settings = get_settings()
+    available: list[ModelOption] = []
+
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(f"{settings.edge_llm_url}/models")
+            if resp.status_code == 200:
+                for m in resp.json().get("data", []):
+                    available.append(
+                        ModelOption(id=m["id"], provider="lmstudio", label=f"{m['id']} (local)")
+                    )
+    except Exception:
+        logger.info("settings/models: LM Studio unreachable, omitting local models")
+
+    if settings.groq_api_key:
+        try:
+            from groq import AsyncGroq
+
+            groq_client = AsyncGroq(api_key=settings.groq_api_key)
+            resp = await groq_client.models.list()
+            for m in resp.data:
+                # The same account lists Whisper/TTS models too — not chat models.
+                if "whisper" in m.id or "tts" in m.id or "guard" in m.id:
+                    continue
+                available.append(ModelOption(id=m.id, provider="groq", label=f"{m.id} (cloud)"))
+        except Exception:
+            logger.info("settings/models: Groq model list unreachable, omitting cloud models")
+
+    active = get_active()
+    return ModelsResponse(current=active.model, provider=active.provider, available=available)
+
+
+@app.post("/settings/model")
+async def set_model(req: SetModelRequest):
+    from model_settings import set_active
+
+    set_active(req.provider, req.model)
+    logger.info("settings/model: switched to %s (%s)", req.model, req.provider)
+    return {"ok": True, "current": req.model, "provider": req.provider}
 
 
 # ---------------------------------------------------------------------------
@@ -90,9 +181,26 @@ async def session_start(req: SessionStartRequest):
     from providers.tts import get_tts
     from providers.translate import get_translate
     
-    session = Session(visit_id=req.visit_id, patient_id=req.patient_id, language=req.language)
+    # Reuse an in-flight session rather than replacing it. The nurse's Pass One
+    # vitals — and the urgency flags they fired — arrive before this call, and
+    # constructing a fresh Session here silently discarded them, which is how a
+    # 2-flag visit came out routine.
+    session = store.get(req.visit_id)
+    if session is None:
+        session = Session(visit_id=req.visit_id, patient_id=req.patient_id, language=req.language)
+    else:
+        session.patient_id = req.patient_id or session.patient_id
+        session.language = req.language
+
     store.put(session)
-    
+
+    # The visit row is written locally first — it is the parent of every reading
+    # and report the outbox will later push, so it has to exist offline too.
+    from sync.worker import record_visit
+
+    record_visit(session)
+
+
     greeting_en = "Hello, I am Vaidhya. How can I help you today?"
     translate = get_translate()
     bot_text_native = await translate.to_native(greeting_en, req.language)
@@ -102,12 +210,40 @@ async def session_start(req: SessionStartRequest):
     return {"bot_text_en": greeting_en, "bot_text_native": bot_text_native, "bot_audio_url": audio_url}
 
 
-@app.post("/vitals")
+@app.post("/vitals", response_model=VitalsResponse)
 async def vitals(req: VitalsRequest):
-    # TODO(T1 task 9): persist readings, run the rules engine, return fired flags.
-    # phase="on_demand" is also how the nurse answers a pending finding — set
-    # finding.entered_at here so the next poll resumes the conversation.
-    return not_implemented("9 — rules engine")
+    """
+    Pass One baseline AND the nurse answering an on-demand finding — one
+    endpoint, told apart by `phase`. Firing the rules here is what makes the
+    report come out Urgent instead of routine.
+    """
+    session = store.get(req.visit_id)
+    if session is None:
+        # Pass One usually lands before the consult screen has run
+        # /session/start, so open the visit here rather than reject the
+        # nurse's readings. Language is provisional and gets corrected the
+        # moment the nurse picks one.
+        from sync.worker import record_visit
+        from voicebot.session import Session
+
+        session = Session(
+            visit_id=req.visit_id,
+            patient_id=req.patient_id or "",
+            language=req.language or "ml",
+        )
+        store.put(session)
+        if session.patient_id:
+            record_visit(session)
+
+    from vitals_store import record_vitals
+
+    fired = record_vitals(session, req)
+
+    if req.phase == "on_demand":
+        resolve_pending(session)
+
+    store.put(session)
+    return VitalsResponse(ok=True, fired_flags=fired)
 
 
 @app.post("/voice/turn")
@@ -121,7 +257,34 @@ async def voice_turn(visit_id: str = Form(...), audio: UploadFile = File(...)):
     from voicebot.orchestrator import run_turn
     audio_bytes = await audio.read()
     response = await run_turn(session, audio_bytes)
-    
+
+    # If the doctor was waiting on this turn, their answer goes back over MQTT.
+    # answer_doctor() clears the question, so the patient is not re-asked it.
+    from consult import answer_doctor
+
+    answer_doctor(session, response.transcript_en)
+
+    store.put(session)
+    return response
+
+
+@app.post("/voice/turn/text")
+async def voice_turn_text(req: VoiceTurnTextRequest):
+    """The typed-answer fallback — same turn loop as /voice/turn, minus STT."""
+    session = store.get(req.visit_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "session not found"})
+
+    resolve_pending(session)
+
+    from voicebot.orchestrator import run_text_turn
+
+    response = await run_text_turn(session, req.text_en)
+
+    from consult import answer_doctor
+
+    answer_doctor(session, response.transcript_en)
+
     store.put(session)
     return response
 
@@ -144,6 +307,7 @@ async def session_state(visit_id: str):
         phase=session.phase,
         pending_finding=as_contract(session.pending_finding),
         turn_count=session.turn_count,
+        doctor_question=session.doctor_question,
     )
 
 
@@ -160,5 +324,30 @@ async def intake_complete(req: IntakeCompleteRequest):
 @app.post("/consult/ask")
 async def consult_ask(req: ConsultAskRequest):
     """TEST CONVENIENCE ONLY. The real path is MQTT — this lets T1 exercise the
-    consult relay without a broker."""
-    return not_implemented("11 — MQTT consult relay")
+    consult relay without a broker, and is the fallback if HiveMQ is blocked at
+    the venue and both nodes end up on one laptop."""
+    session = store.get(req.visit_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "session not found"})
+
+    from consult import ask_patient
+
+    question = await ask_patient(session, req.question_en)
+    return question
+
+
+@app.get("/sync/status")
+async def sync_status():
+    """How many local writes have not reached Supabase. This is the number to
+    put on screen when the wifi comes back."""
+    from sync.worker import status
+
+    return status()
+
+
+@app.post("/sync/flush")
+async def sync_flush():
+    """Drain the outbox now instead of waiting for the next tick."""
+    from sync.worker import flush_outbox
+
+    return await flush_outbox()

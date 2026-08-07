@@ -18,6 +18,7 @@ export default async function PatientLayout({
     { label: "Clinical Assistant", href: "/intake", iconName: "assistant" },
     { label: "Prescriptions & eRx", href: "/prescription", iconName: "prescription" },
     { label: "Medical History", href: "/history", iconName: "history" },
+    { label: "AI Settings", href: "/settings", iconName: "settings" },
     { label: "Profile", href: "/profile", iconName: "profile" },
   ];
 

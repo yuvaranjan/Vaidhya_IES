@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { claimVisit } from "./actions";
 import { getMqttClient, subscribeJson, disconnectMqtt } from "@/lib/mqtt";
-import type { MockVisit } from "@/lib/mockQueue";
+import type { Visit as MockVisit } from "@/lib/queue";
 import { 
   Users, 
   Clock, 
@@ -23,7 +23,10 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
 
   useEffect(() => {
     const client = getMqttClient(doctorId);
-    
+    // No broker configured — the queue still renders from its server fetch,
+    // it just does not update live.
+    if (!client) return;
+
     const unsubscribe = subscribeJson<{ visitId: string, patientName: string, chiefComplaint: string, urgency: "routine"| "elevated" | "urgent" }>(
       client,
       "vaidhya/queue/new",
@@ -138,7 +141,7 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
                 <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
                   <span className="flex items-center gap-1 font-semibold">
                     <Clock className="w-3.5 h-3.5 text-accent" />
-                    Waiting since: {new Date(visit.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    Waiting since: {new Date(visit.createdAt).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <span>&bull;</span>
                   <span className="font-mono text-[11px] bg-background px-2 py-0.5 rounded border border-border">ID: {visit.visitId}</span>

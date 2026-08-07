@@ -30,11 +30,20 @@ export async function GET(request: NextRequest) {
     // Try Supabase if available
     if (db) {
       try {
+        // `prescriptions` has no foreign key to `patients` — the path is
+        // prescriptions → visits → patients. Embedding patients directly made
+        // PostgREST reject the whole query, and the catch below turned that
+        // into a silent fall back to mock data: real pharmacies, but the
+        // mock's medicine list and queue state.
         const { data: rx, error: rxError } = await db
           .from("prescriptions")
-          .select("*, patients(*)")
+          .select("*, visits(patient_id, patients(home_jurisdiction_id))")
           .eq("prescription_id", prescriptionId)
           .maybeSingle();
+
+        if (rxError) {
+          console.error("[nearby] prescription lookup failed:", rxError.message);
+        }
 
         if (!rxError && rx) {
           let originLat = 10.5276;
@@ -43,11 +52,11 @@ export async function GET(request: NextRequest) {
           if (customOrigin) {
             originLat = customOrigin.lat;
             originLng = customOrigin.lng;
-          } else if (rx.patients?.home_jurisdiction_id) {
+          } else if (rx.visits?.patients?.home_jurisdiction_id) {
             const { data: jur } = await db
               .from("jurisdictions")
               .select("latitude, longitude")
-              .eq("jurisdiction_id", rx.patients.home_jurisdiction_id)
+              .eq("jurisdiction_id", rx.visits.patients.home_jurisdiction_id)
               .maybeSingle();
             if (jur) {
               originLat = jur.latitude;

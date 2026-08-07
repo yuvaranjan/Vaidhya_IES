@@ -43,6 +43,8 @@ const getIcon = (name?: string, active?: boolean) => {
     case "profile":
     case "account":
       return <User size={size} strokeWidth={strokeWidth} />;
+    case "settings":
+      return <Settings size={size} strokeWidth={strokeWidth} />;
     case "queue":
     case "patients":
       return <Users size={size} strokeWidth={strokeWidth} />;

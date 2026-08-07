@@ -14,7 +14,13 @@ import {
   Sparkles 
 } from "lucide-react";
 
-export function VitalsForm({ visitId }: { visitId: string }) {
+export function VitalsForm({
+  visitId,
+  patientId,
+}: {
+  visitId: string;
+  patientId: string;
+}) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +46,11 @@ export function VitalsForm({ visitId }: { visitId: string }) {
     ];
 
     try {
+      // patient_id lets the edge service open the visit here — Pass One runs
+      // before the consult screen picks a language and calls /session/start.
       await edgeApi.vitals({
         visit_id: visitId,
+        patient_id: patientId,
         phase: "pass_one_baseline",
         readings,
       });

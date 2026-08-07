@@ -52,6 +52,12 @@ class Session:
     vitals: list[dict] = field(default_factory=list)
     pending_finding: Finding | None = None
     fired_flags: list[dict] = field(default_factory=list)
+    # Question tags the fired rules steer towards ("respiratory", "cardiac"…).
+    # This is what makes the branch visible on stage rather than implicit.
+    branch_tags: list[str] = field(default_factory=list)
+    # An outstanding doctor question relayed in over MQTT, as a plain dict so
+    # the session stays JSON-serialisable for the SQLite mirror.
+    doctor_question: dict | None = None
 
     @property
     def turn_count(self) -> int:
@@ -79,7 +85,7 @@ def resolve_pending(session: Session) -> Resolution | None:
         return "resume"
 
     if elapsed > 2 * timeout:  # gave up
-        # TODO(T1): mark_reading(f.reading_id, status="not_obtained")
+        _mark_not_obtained(f, session.visit_id)
         session.pending_finding = None
         session.phase = "conversation"
         return "resume_without"
@@ -89,6 +95,21 @@ def resolve_pending(session: Session) -> Resolution | None:
         return "remind"  # re-voice the request, once
 
     return "waiting"
+
+
+def _mark_not_obtained(f: Finding, visit_id: str) -> None:
+    """
+    The nurse never answered. Record that as a fact rather than as an absence —
+    the doctor needs to see "not obtained", not a silently missing row.
+    """
+    with sqlite3.connect(get_settings().edge_db_path) as conn:
+        conn.execute(
+            "insert into vitals_readings "
+            "(reading_id, visit_id, type, phase, requested_at, status) "
+            "values (?,?,?,?,?,'not_obtained') "
+            "on conflict(reading_id) do update set status='not_obtained'",
+            (f.reading_id, visit_id, f.type, "on_demand", str(f.requested_at)),
+        )
 
 
 def as_contract(f: Finding | None) -> PendingFinding | None:

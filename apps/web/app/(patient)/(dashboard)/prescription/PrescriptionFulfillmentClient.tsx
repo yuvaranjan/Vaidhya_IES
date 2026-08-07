@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { 
   Pill, 
   Printer, 
@@ -32,56 +32,126 @@ type Pharmacy = {
   stockStatus: "in_stock" | "low_stock" | "out_of_stock";
   stockLabel: string;
   outOfStockItem?: string;
+  inQueue: boolean;
 };
+
+/** The row shape GET /api/pharmacies/nearby returns (T3 owns that route). */
+type NearbyPharmacy = {
+  pharmacy_id: string;
+  name: string;
+  location: string;
+  phone_number: string;
+  distance_km: number;
+  medicines: Array<{ name: string; status: string; quantity: number }>;
+  all_in_stock: boolean;
+  has_out_of_stock: boolean;
+  in_queue: boolean;
+};
+
+function toPharmacy(p: NearbyPharmacy): Pharmacy {
+  const lowItems = p.medicines.filter((m) => m.status === "low").length;
+  const outItem = p.medicines.find((m) => m.status === "out_of_stock");
+
+  const stockStatus: Pharmacy["stockStatus"] = p.has_out_of_stock
+    ? "out_of_stock"
+    : p.all_in_stock
+      ? "in_stock"
+      : "low_stock";
+
+  return {
+    id: p.pharmacy_id,
+    name: p.name,
+    address: p.location,
+    distance: `${p.distance_km.toFixed(1)} km away`,
+    phone: p.phone_number,
+    stockStatus,
+    stockLabel:
+      stockStatus === "in_stock"
+        ? "All Items In Stock"
+        : stockStatus === "low_stock"
+          ? `Limited Stock (${lowItems} item${lowItems === 1 ? "" : "s"} low)`
+          : "Out of Stock",
+    outOfStockItem: outItem?.name,
+    inQueue: p.in_queue,
+  };
+}
 
 export function PrescriptionFulfillmentClient({
   patientName,
   medications,
+  prescriptionId,
 }: {
   patientName: string;
   medications: Medication[];
+  prescriptionId: string | null;
 }) {
   const [selectedPharmacy, setSelectedPharmacy] = useState<string | null>(null);
   const [fulfilledOrder, setFulfilledOrder] = useState<string | null>(null);
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [routing, setRouting] = useState<string | null>(null);
 
-  const pharmacies: Pharmacy[] = [
-    {
-      id: "pharm_01",
-      name: "City Medicals & Healthcare",
-      address: "12 MG Road, Sector 4, Central Junction",
-      distance: "0.6 km away",
-      phone: "+91 98470 11223",
-      stockStatus: "in_stock",
-      stockLabel: "All Items In Stock",
-    },
-    {
-      id: "pharm_02",
-      name: "Devi Pharmacy",
-      address: "45 Hospital Road, Near Government Clinic",
-      distance: "1.2 km away",
-      phone: "+91 98470 44556",
-      stockStatus: "low_stock",
-      stockLabel: "Limited Stock (1 item low)",
-    },
-    {
-      id: "pharm_03",
-      name: "Amala Medicals",
-      address: "88 Church Street, Block B",
-      distance: "2.4 km away",
-      phone: "+91 98470 77889",
-      stockStatus: "out_of_stock",
-      stockLabel: "Out of Stock",
-      outOfStockItem: "Paracetamol 500mg",
-    },
-  ];
+  const loadPharmacies = useCallback(async () => {
+    if (!prescriptionId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch(
+        `/api/pharmacies/nearby?prescription_id=${encodeURIComponent(prescriptionId)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error(`nearby → ${res.status}`);
+      const rows: NearbyPharmacy[] = await res.json();
+      setPharmacies(rows.map(toPharmacy));
+
+      // A pharmacy that already has this prescription queued should read as
+      // sent on a reload, not offer to send it again.
+      const already = rows.find((p) => p.in_queue);
+      if (already) {
+        setSelectedPharmacy(already.name);
+        setFulfilledOrder(already.name);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [prescriptionId]);
+
+  useEffect(() => {
+    void loadPharmacies();
+  }, [loadPharmacies]);
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleFulfill = (pharmacyName: string) => {
-    setSelectedPharmacy(pharmacyName);
-    setFulfilledOrder(pharmacyName);
+  const handleFulfill = async (pharmacy: Pharmacy) => {
+    if (!prescriptionId) return;
+    setRouting(pharmacy.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/pharmacies/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prescription_id: prescriptionId,
+          pharmacy_id: pharmacy.id,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.text()) || `route → ${res.status}`);
+
+      setSelectedPharmacy(pharmacy.name);
+      setFulfilledOrder(pharmacy.name);
+      // Re-read so the pharmacy's own queue screen and this one agree.
+      await loadPharmacies();
+    } catch (err) {
+      setError(`Could not send to ${pharmacy.name}: ${(err as Error).message}`);
+    } finally {
+      setRouting(null);
+    }
   };
 
   return (
@@ -111,7 +181,16 @@ export function PrescriptionFulfillmentClient({
             <CheckCircle2 className="w-5 h-5 text-[#14736A]" />
             <span>Prescription sent to <strong>{fulfilledOrder}</strong>! Your order is queued for pickup in 15 minutes.</span>
           </div>
-          <span className="text-[10px] uppercase font-extrabold px-2.5 py-1 bg-white/80 rounded-full">Order #RX-8841</span>
+          <span className="text-[10px] uppercase font-extrabold px-2.5 py-1 bg-white/80 rounded-full">
+            Order #{prescriptionId?.toUpperCase() ?? "PENDING"}
+          </span>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
@@ -179,6 +258,26 @@ export function PrescriptionFulfillmentClient({
               <p className="text-xs text-muted-foreground font-medium">Per-medicine inventory status checked live against nearby nodes.</p>
             </div>
 
+            {loading && (
+              <div className="py-8 text-center text-xs font-semibold text-muted-foreground flex items-center justify-center gap-2">
+                <Clock className="w-4 h-4 animate-pulse" />
+                Checking stock at nearby pharmacies…
+              </div>
+            )}
+
+            {!loading && !prescriptionId && (
+              <div className="py-8 text-center text-xs font-semibold text-muted-foreground">
+                No prescription yet. Once your doctor issues one it appears here,
+                with live stock at every pharmacy near you.
+              </div>
+            )}
+
+            {!loading && prescriptionId && pharmacies.length === 0 && (
+              <div className="py-8 text-center text-xs font-semibold text-muted-foreground">
+                No pharmacies found within range.
+              </div>
+            )}
+
             <div className="space-y-4 pt-2">
               {pharmacies.map((pharm) => (
                 <div 
@@ -220,18 +319,28 @@ export function PrescriptionFulfillmentClient({
                   <div className="pt-2 flex items-center justify-between border-t border-border/60">
                     <span className="text-[11px] text-muted-foreground font-semibold">Contact: {pharm.phone}</span>
                     <button
-                      disabled={pharm.stockStatus === "out_of_stock"}
-                      onClick={() => handleFulfill(pharm.name)}
+                      disabled={
+                        pharm.stockStatus === "out_of_stock" || routing !== null
+                      }
+                      onClick={() => void handleFulfill(pharm)}
                       className={`px-4 h-9 rounded-lg font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 ${
                         selectedPharmacy === pharm.name
                           ? "bg-[#14736A] text-white"
-                          : pharm.stockStatus === "out_of_stock"
+                          : pharm.stockStatus === "out_of_stock" || routing !== null
                           ? "bg-muted text-muted-foreground cursor-not-allowed"
                           : "bg-primary text-primary-foreground hover:opacity-90"
                       }`}
                     >
-                      <span>{selectedPharmacy === pharm.name ? "Order Sent ✓" : "Send eRx Here"}</span>
-                      {selectedPharmacy !== pharm.name && <ArrowRight className="w-3.5 h-3.5" />}
+                      <span>
+                        {selectedPharmacy === pharm.name
+                          ? "Order Sent ✓"
+                          : routing === pharm.id
+                            ? "Sending…"
+                            : "Send eRx Here"}
+                      </span>
+                      {selectedPharmacy !== pharm.name && routing !== pharm.id && (
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>

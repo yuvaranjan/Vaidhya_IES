@@ -12,12 +12,15 @@
 import type {
   HealthResponse,
   IntakeCompleteResponse,
+  ModelsResponse,
   SessionStartRequest,
   SessionStartResponse,
   SessionState,
+  SetModelRequest,
   TurnResponse,
   VitalsRequest,
   VitalsResponse,
+  VoiceTurnTextRequest,
 } from "@vaidhya/shared";
 import { mockAi } from "./mockAi";
 
@@ -68,6 +71,13 @@ export const edgeApi = {
     });
   },
 
+  /** The typed-answer fallback — same turn loop as voiceTurn, minus STT. */
+  voiceTurnText(req: VoiceTurnTextRequest): Promise<TurnResponse> {
+    return USE_MOCK_AI
+      ? mockAi.voiceTurn(req.visit_id)
+      : post("/voice/turn/text", req);
+  },
+
   /** Poll this every 2s while the assistant page is open. */
   sessionState(visitId: string): Promise<SessionState> {
     return USE_MOCK_AI
@@ -88,5 +98,14 @@ export const edgeApi = {
 
   health(): Promise<HealthResponse> {
     return USE_MOCK_AI ? mockAi.health() : get("/health");
+  },
+
+  /** Model selection has no mock — it's inherently a real-edge feature. */
+  listModels(): Promise<ModelsResponse> {
+    return get("/settings/models");
+  },
+
+  setModel(req: SetModelRequest): Promise<{ ok: boolean; current: string; provider: string }> {
+    return post("/settings/model", req);
   },
 };

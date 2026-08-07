@@ -87,11 +87,28 @@ export interface VitalsRequest {
   visit_id: string;
   phase: VitalsPhase;
   readings: VitalReadingInput[];
+  /**
+   * The nurse enters vitals before the language picker on the consult screen,
+   * so this is often the first call of a visit. Sending these lets the edge
+   * service open the session itself instead of 404-ing. Added after the
+   * freeze, additively — see contracts.py for the mirror.
+   */
+  patient_id?: string;
+  language?: Language;
 }
 
 export interface VitalsResponse {
   ok: boolean;
   fired_flags: UrgencyFlag[];
+}
+
+/* ------------------------------------------------------------------ */
+/* POST /voice/turn/text   — typed-answer fallback (architecture R7)   */
+/* ------------------------------------------------------------------ */
+
+export interface VoiceTurnTextRequest {
+  visit_id: string;
+  text_en: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -113,11 +130,26 @@ export interface TurnResponse {
 /* GET /session/{visit_id}/state   — poll every 2s                     */
 /* ------------------------------------------------------------------ */
 
+/**
+ * A question the doctor sent over MQTT, already translated and voiced by the
+ * edge service. The patient browser cannot subscribe to MQTT itself, so it
+ * picks these up on its existing 2s poll.
+ */
+export interface DoctorQuestion {
+  message_id: string;
+  text_en: string;
+  text_native: string;
+  audio_url: string;
+  asked_at: string;
+}
+
 export interface SessionState {
   visit_id: string;
   phase: SessionPhase;
   pending_finding: PendingFinding | null;
   turn_count: number;
+  /** Added after the freeze, additively — see contracts.py for the mirror. */
+  doctor_question?: DoctorQuestion | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -147,6 +179,29 @@ export interface ConsultAskRequest {
 /* ------------------------------------------------------------------ */
 /* GET /health                                                         */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* GET/POST /settings/model   — runtime model selection                 */
+/* ------------------------------------------------------------------ */
+
+export type ModelProvider = "lmstudio" | "groq";
+
+export interface ModelOption {
+  id: string;
+  provider: ModelProvider;
+  label: string;
+}
+
+export interface ModelsResponse {
+  current: string;
+  provider: ModelProvider;
+  available: ModelOption[];
+}
+
+export interface SetModelRequest {
+  model: string;
+  provider: ModelProvider;
+}
 
 export type ServiceStatus = "ok" | "down";
 

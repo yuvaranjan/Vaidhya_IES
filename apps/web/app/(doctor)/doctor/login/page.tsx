@@ -57,12 +57,12 @@ export default function DoctorLoginPage() {
               id="password" 
               name="password" 
               required 
-              defaultValue="doctor123" 
-              className="w-full h-11 px-3.5 border border-border rounded-lg bg-background text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring" 
+              defaultValue="vaidhya123"
+              className="w-full h-11 px-3.5 border border-border rounded-lg bg-background text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <div className="mt-2.5 p-2.5 rounded-lg bg-secondary/80 border border-border flex items-center justify-between text-xs">
               <span className="text-muted-foreground font-medium">Demo Doctor Pass:</span>
-              <code className="font-bold text-accent font-mono bg-card px-2 py-0.5 rounded border border-border">doctor123</code>
+              <code className="font-bold text-accent font-mono bg-card px-2 py-0.5 rounded border border-border">vaidhya123</code>
             </div>
           </div>
 

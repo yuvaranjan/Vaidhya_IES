@@ -39,6 +39,33 @@ create table if not exists diagnostic_reports (
   generated_at text not null
 );
 
+-- Branching rules, mirrored from the `branching_rules` rows in 002_seed.sql.
+-- They live here rather than being fetched from Supabase because the rules
+-- engine has to fire with the wifi unplugged — that is the whole point of
+-- demo steps 4 and 6. `question_branch_tags` is a comma-separated string
+-- because SQLite has no array type; Postgres keeps the real text[].
+create table if not exists branching_rules (
+  rule_id text primary key,
+  trigger_vital_or_finding text not null,
+  condition text not null,
+  question_branch_tags text not null default '',
+  urgency_flag integer not null default 0,
+  description_template text,
+  active integer not null default 1
+);
+
+-- Seeded with `or ignore` so a hand-edited row survives a restart.
+insert or ignore into branching_rules
+  (rule_id, trigger_vital_or_finding, condition, question_branch_tags, urgency_flag, description_template)
+values
+  ('rule_spo2_low',           'spo2',               '<92',    'respiratory',          1, 'low SpO2 ({value}%)'),
+  ('rule_spo2_critical',      'spo2',               '<88',    'respiratory,emergency',1, 'critically low SpO2 ({value}%)'),
+  ('rule_fever_high',         'temperature',        '>=38.5', 'infection',            1, 'high fever ({value}°C)'),
+  ('rule_tachycardia',        'pulse',              '>=110',  'cardiac',              1, 'tachycardia ({value} bpm)'),
+  ('rule_bradycardia',        'pulse',              '<50',    'cardiac',              1, 'bradycardia ({value} bpm)'),
+  ('rule_tachypnea',          'respiratory_rate',   '>=24',   'respiratory',          1, 'raised respiratory rate ({value}/min)'),
+  ('rule_rebound_tenderness', 'rebound_tenderness', '==true', 'abdominal,surgical',   1, 'rebound tenderness present');
+
 -- Voicebot session state, so a uvicorn restart mid-demo is survivable.
 create table if not exists sessions (
   visit_id text primary key,
