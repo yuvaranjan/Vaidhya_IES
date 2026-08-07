@@ -16,6 +16,7 @@ export default async function PatientLayout({
   const patientNavItems: NavItem[] = [
     { label: "Dashboard", href: "/dashboard", iconName: "dashboard" },
     { label: "Clinical Assistant", href: "/intake", iconName: "assistant" },
+    { label: "Prescriptions & eRx", href: "/prescription", iconName: "prescription" },
     { label: "Medical History", href: "/history", iconName: "history" },
     { label: "Profile", href: "/profile", iconName: "profile" },
   ];

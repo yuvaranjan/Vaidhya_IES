@@ -11,7 +11,8 @@ import {
   Activity, 
   Settings,
   HeartPulse,
-  Sparkles
+  Sparkles,
+  Pill
 } from "lucide-react";
 
 export type NavItem = {
@@ -32,6 +33,10 @@ const getIcon = (name?: string, active?: boolean) => {
     case "intake":
     case "vitals":
       return <HeartPulse size={size} strokeWidth={strokeWidth} />;
+    case "prescription":
+    case "pharmacy":
+    case "erx":
+      return <Pill size={size} strokeWidth={strokeWidth} />;
     case "history":
     case "records":
       return <FileText size={size} strokeWidth={strokeWidth} />;

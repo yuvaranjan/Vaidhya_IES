@@ -15,11 +15,7 @@ export async function submitPrescription(visitId: string, formData: FormData) {
   const rawMeds = formData.get("medications")?.toString() || "[]";
   const medications = JSON.parse(rawMeds);
 
-  const success = completeVisit(visitId, {
-    doctorId: session.doctorId,
-    medications,
-    submittedAt: new Date().toISOString()
-  });
+  const success = completeVisit(visitId, medications);
 
   if (!success) {
     throw new Error("Failed to complete visit. It may have already been closed.");
