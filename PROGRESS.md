@@ -4,14 +4,14 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T19:59:49Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T20:02:02Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
 | **T1** | Yuvaranjan | 🔵 in progress | TranslateProvider implemented, moving to Session store | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _3h behind_ | `agents/status/T2.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _1h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Starter seed written but not yet applied to a real Supabase project | `agents/status/T4.md` |
 
@@ -169,14 +169,14 @@ Last self-reported update: 2026-08-07T22:45:00Z
 ## Recent commits
 
 ```
+b94dd5f · 08 Aug 01:29 · Merge branch 'main' of origin/main integrating T1 providers, T2 dashboard shell, and T3 pharmacy fulfillment
 8fc9f13 · 08 Aug 01:28 · feat(pharmacy): implement Lane T3 pharmacy queue, stock CRUD, live inventory routing, and delivery simulation
+2e422ce · 08 Aug 00:56 · feat(web): overhaul frontend design to match Cure Cloud spec & add dashboard shell
+7baea1d · 07 Aug 23:32 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
+2a9f7ea · 07 Aug 23:26 · T1: Implemented LLM, STT, TTS, and Translate providers
 bd33967 · 07 Aug 23:24 · Create design_description.md
 7379957 · 07 Aug 23:03 · Stop adding a Claude co-author trailer to commits and PRs
 f02a62f · 07 Aug 23:00 · Give each lane a single-prompt entry point and a task→architecture map
-a6fd94f · 07 Aug 22:54 · Regenerate the board now that status files are committed
-529a067 · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
-bf4420a · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
-df51bc7 · 07 Aug 22:36 · Move all planning documents into Docs/
 ```
 
 ---
