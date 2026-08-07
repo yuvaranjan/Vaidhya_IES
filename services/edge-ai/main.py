@@ -86,8 +86,20 @@ async def health() -> HealthResponse:
 
 @app.post("/session/start")
 async def session_start(req: SessionStartRequest):
-    # TODO(T1 task 6): create Session, greet in req.language, TTS the greeting.
-    return not_implemented("6 — session store")
+    from voicebot.session import Session, store
+    from providers.tts import get_tts
+    from providers.translate import get_translate
+    
+    session = Session(visit_id=req.visit_id, patient_id=req.patient_id, language=req.language)
+    store.put(session)
+    
+    greeting_en = "Hello, I am Vaidhya. How can I help you today?"
+    translate = get_translate()
+    bot_text_native = await translate.to_native(greeting_en, req.language)
+    tts = get_tts()
+    audio_url = await tts.speak(bot_text_native, req.language)
+    
+    return {"bot_text_en": greeting_en, "bot_text_native": bot_text_native, "bot_audio_url": audio_url}
 
 
 @app.post("/vitals")
@@ -100,8 +112,18 @@ async def vitals(req: VitalsRequest):
 
 @app.post("/voice/turn")
 async def voice_turn(visit_id: str = Form(...), audio: UploadFile = File(...)):
-    # TODO(T1 task 7): resolve_pending(session) first, then run the turn loop.
-    return not_implemented("7 — voicebot turn loop")
+    session = store.get(visit_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "session not found"})
+        
+    resolve_pending(session)
+    
+    from voicebot.orchestrator import run_turn
+    audio_bytes = await audio.read()
+    response = await run_turn(session, audio_bytes)
+    
+    store.put(session)
+    return response
 
 
 @app.get("/session/{visit_id}/state", response_model=SessionState)
@@ -127,8 +149,12 @@ async def session_state(visit_id: str):
 
 @app.post("/intake/complete")
 async def intake_complete(req: IntakeCompleteRequest):
-    # TODO(T1 task 10): summary → Supabase write → publish vaidhya/queue/new.
-    return not_implemented("10 — report builder")
+    session = store.get(req.visit_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "session not found"})
+        
+    from report.builder import build_and_publish
+    return await build_and_publish(session)
 
 
 @app.post("/consult/ask")

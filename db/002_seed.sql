@@ -156,5 +156,158 @@ insert into question_bank (cache_key, text_en, text_ml, text_ta, text_hi, branch
    'क्या आप सामान्य रूप से खा-पी सकते हैं?', 'general'),
   ('does the pain get worse when you move', 'Does the pain get worse when you move?',
    'അനങ്ങുമ്പോൾ വേദന കൂടുന്നുണ്ടോ?', 'நகரும்போது வலி அதிகரிக்கிறதா?',
-   'हिलने-डुलने पर दर्द बढ़ता है?', 'abdominal')
-on conflict (cache_key) do update set text_ml = excluded.text_ml;
+   'हिलने-डुलने पर दर्द बढ़ता है?', 'abdominal'),
+  ('have you vomited', 'Have you vomited?',
+   'ഛർദ്ദിച്ചിട്ടുണ്ടോ?', 'உங்களுக்கு வாந்தி வந்ததா?', 'क्या आपको उल्टी हुई है?', 'general'),
+  ('is there any blood in it', 'Is there any blood in it?',
+   'അതിൽ രക്തം ഉണ്ടോ?', 'அதில் இரத்தம் உள்ளதா?', 'क्या उसमें खून है?', 'general'),
+  ('how long have you had this cough', 'How long have you had this cough?',
+   'ഈ ചുമ എത്ര നാളായി?', 'இந்த இருமல் எவ்வளவு காலமாக உள்ளது?', 'यह खांसी कब से है?', 'respiratory'),
+  ('are you finding it hard to breathe', 'Are you finding it hard to breathe?',
+   'ശ്വാസമെടുക്കാൻ ബുദ്ധിമുട്ട് ഉണ്ടോ?', 'மூச்சு விடுவதில் சிரமம் உள்ளதா?',
+   'क्या आपको सांस लेने में दिक्कत हो रही है?', 'respiratory'),
+  ('do you have chest pain', 'Do you have chest pain?',
+   'നെഞ്ചുവേദന ഉണ്ടോ?', 'மார்பு வலி உள்ளதா?', 'क्या आपको सीने में दर्द है?', 'cardiac'),
+  ('does your heart feel like it is racing', 'Does your heart feel like it is racing?',
+   'ഹൃദയമിടിപ്പ് വേഗത്തിലാണോ?', 'இதயம் வேகமாக துடிக்கிறதா?', 'क्या दिल की धड़कन तेज़ महसूस होती है?', 'cardiac'),
+  ('have you had any dizziness or fainting', 'Have you had any dizziness or fainting?',
+   'തലകറക്കമോ ബോധക്ഷയമോ ഉണ്ടായോ?', 'தலைச்சுற்றல் அல்லது மயக்கம் ஏற்பட்டதா?',
+   'क्या आपको चक्कर या बेहोशी महसूस हुई?', 'cardiac'),
+  ('when did the fever start', 'When did the fever start?',
+   'പനി എപ്പോൾ തുടങ്ങി?', 'காய்ச்சல் எப்போது தொடங்கியது?', 'बुखार कब शुरू हुआ?', 'infection'),
+  ('have you taken any medicine for this already', 'Have you taken any medicine for this already?',
+   'ഇതിന് എന്തെങ്കിലും മരുന്ന് കഴിച്ചിട്ടുണ്ടോ?', 'இதற்கு ஏற்கனவே மருந்து எடுத்துக் கொண்டீர்களா?',
+   'क्या आपने इसके लिए पहले से कोई दवा ली है?', 'general'),
+  ('do you have any known allergies', 'Do you have any known allergies?',
+   'അറിയപ്പെടുന്ന അലർജികൾ ഉണ്ടോ?', 'உங்களுக்கு தெரிந்த ஒவ்வாமைகள் ஏதேனும் உள்ளதா?',
+   'क्या आपको कोई ज्ञात एलर्जी है?', 'general'),
+  ('are you on any regular medication', 'Are you on any regular medication?',
+   'സ്ഥിരമായി ഏതെങ്കിലും മരുന്ന് കഴിക്കുന്നുണ്ടോ?', 'நீங்கள் தொடர்ந்து ஏதேனும் மருந்து எடுக்கிறீர்களா?',
+   'क्या आप कोई नियमित दवा लेते हैं?', 'general'),
+  ('does it hurt when i press here', 'Does it hurt when I press here?',
+   'ഇവിടെ അമർത്തുമ്പോൾ വേദനിക്കുന്നുണ്ടോ?', 'இங்கே அழுத்தும்போது வலிக்கிறதா?',
+   'यहाँ दबाने पर दर्द होता है?', 'abdominal'),
+  ('have your bowel movements changed recently', 'Have your bowel movements changed recently?',
+   'അടുത്തിടെ മലവിസർജ്ജനത്തിൽ മാറ്റം ഉണ്ടായോ?', 'சமீபத்தில் மலம் கழிப்பதில் மாற்றம் ஏற்பட்டதா?',
+   'क्या हाल ही में मल त्याग में बदलाव आया है?', 'abdominal'),
+  ('have you noticed any swelling', 'Have you noticed any swelling?',
+   'എന്തെങ്കിലും വീക്കം ശ്രദ്ധയിൽപ്പെട്ടോ?', 'ஏதேனும் வீக்கம் கவனித்தீர்களா?', 'क्या आपने कोई सूजन देखी है?', 'general'),
+  ('is the pain constant or does it come and go', 'Is the pain constant or does it come and go?',
+   'വേദന നിരന്തരമാണോ അതോ ഇടയ്ക്കിടെയാണോ?', 'வலி தொடர்ச்சியானதா அல்லது இடைவிட்டு வருகிறதா?',
+   'दर्द लगातार है या रुक-रुक कर आता है?', 'general'),
+  ('on a scale of one to ten how bad is the pain', 'On a scale of one to ten, how bad is the pain?',
+   'ഒന്ന് മുതൽ പത്ത് വരെയുള്ള സ്കെയിലിൽ വേദന എത്രത്തോളം കഠിനമാണ്?',
+   'ஒன்று முதல் பத்து வரை என்றால் வலி எவ்வளவு கடுமையானது?',
+   'एक से दस के पैमाने पर दर्द कितना गंभीर है?', 'general')
+on conflict (cache_key) do update set
+  text_en = excluded.text_en,
+  text_ml = excluded.text_ml,
+  text_ta = excluded.text_ta,
+  text_hi = excluded.text_hi;
+
+-- =====================================================================
+-- Public health analytics — regional_case_counts (T4, demo step 13).
+-- 10 regions x 4 disease categories x 26 weeks, generated deterministically
+-- (no random()) so re-seeding always reproduces the exact same dataset and
+-- the exact same anomaly, in the exact same place. rolling_baseline and
+-- is_anomaly are computed HERE, once, in the seed script — the dashboard
+-- is read-only and never recomputes them.
+--
+-- week_start_date is anchored to a fixed date, not now(), so re-running
+-- this on a different day still updates the same 260 rows per region
+-- instead of silently inserting a second copy of the dataset next to them.
+-- =====================================================================
+
+with regions(region_id, region_idx, base_multiplier) as (
+  values
+    ('reg_thrissur',   0, 1.0),
+    ('reg_palakkad',   1, 0.9),
+    ('reg_ernakulam',  2, 1.3),
+    ('reg_kozhikode',  3, 1.1),
+    ('reg_malappuram', 4, 1.2),
+    ('reg_kannur',     5, 0.8),
+    ('reg_kollam',     6, 0.95),
+    ('reg_alappuzha',  7, 1.05),
+    ('reg_kottayam',   8, 0.85),
+    ('reg_wayanad',    9, 0.6)
+),
+-- Amplitude is kept well under half of base_count for every disease so
+-- ordinary seasonal variation + jitter never gets close to the 2x-baseline
+-- anomaly threshold on its own — only the deliberate override below does.
+diseases(disease_category, disease_idx, base_count, amplitude) as (
+  values
+    ('respiratory_infection', 0, 20, 4),
+    ('diarrheal_disease',     1, 12, 3),
+    ('dengue',                2, 8,  2),
+    ('hypertension_related',  3, 15, 2)
+),
+weeks(week_num, week_start_date) as (
+  select w, date '2026-08-03' - (26 - w) * 7
+  from generate_series(1, 26) as w
+),
+base as (
+  select
+    r.region_id,
+    d.disease_category,
+    w.week_num,
+    w.week_start_date,
+    greatest(
+      1,
+      round(
+        d.base_count * r.base_multiplier
+        + d.amplitude * sin(w.week_num::float8 / 26 * 2 * pi())
+        + (((r.region_idx * 7 + d.disease_idx * 13 + w.week_num * 3) % 3) - 1)
+      )::int
+    ) as raw_count
+  from regions r
+  cross join diseases d
+  cross join weeks w
+),
+pre_baseline as (
+  select
+    *,
+    avg(raw_count) over (
+      partition by region_id, disease_category
+      order by week_num
+      rows between 4 preceding and 1 preceding
+    ) as trailing_baseline
+  from base
+),
+-- One deliberate, unmistakable spike: dengue in Kozhikode, week 19,
+-- 3.5x its own trailing 4-week baseline.
+spiked as (
+  select
+    region_id,
+    disease_category,
+    week_num,
+    week_start_date,
+    case
+      when region_id = 'reg_kozhikode' and disease_category = 'dengue' and week_num = 19
+        then round(coalesce(trailing_baseline, raw_count) * 3.5)::int
+      else raw_count
+    end as case_count
+  from pre_baseline
+)
+insert into regional_case_counts
+  (region_id, disease_category, week_start_date, case_count, rolling_baseline, is_anomaly)
+select
+  region_id,
+  disease_category,
+  week_start_date,
+  case_count,
+  rolling_baseline,
+  coalesce(case_count > 2 * rolling_baseline, false) as is_anomaly
+from (
+  select
+    *,
+    avg(case_count) over (
+      partition by region_id, disease_category
+      order by week_start_date
+      rows between 4 preceding and 1 preceding
+    ) as rolling_baseline
+  from spiked
+) final
+on conflict (region_id, disease_category, week_start_date) do update set
+  case_count = excluded.case_count,
+  rolling_baseline = excluded.rolling_baseline,
+  is_anomaly = excluded.is_anomaly;

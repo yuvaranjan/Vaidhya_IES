@@ -1,5 +1,13 @@
 import "server-only";
 
+export type MedicationItem = {
+  id: string;
+  name: string;
+  dosage: string;
+  duration: string;
+  instructions: string;
+};
+
 export type MockVisit = {
   visitId: string;
   patientName: string;
@@ -9,6 +17,7 @@ export type MockVisit = {
   status: "awaiting_doctor" | "in_consult" | "completed";
   claimedByDoctorId: string | null;
   createdAt: number;
+  prescription?: MedicationItem[];
 };
 
 // Use globalThis to persist the mock data across hot-reloads and API calls in Next.js dev
@@ -68,7 +77,7 @@ export const claimVisitCAS = (visitId: string, doctorId: string): MockVisit | nu
   return visit;
 };
 
-export const completeVisit = (visitId: string, prescriptionData: any): boolean => {
+export const completeVisit = (visitId: string, prescriptionData: MedicationItem[]): boolean => {
   const queue: MockVisit[] = globalAny.__mockQueue;
   const visitIndex = queue.findIndex(v => v.visitId === visitId);
   
@@ -78,7 +87,7 @@ export const completeVisit = (visitId: string, prescriptionData: any): boolean =
   if (visit.status !== "in_consult") return false;
   
   visit.status = "completed";
-  // In a real app we'd save prescriptionData to the DB here.
+  visit.prescription = prescriptionData;
   return true;
 };
 
