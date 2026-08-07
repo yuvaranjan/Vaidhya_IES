@@ -9,15 +9,36 @@ directories are yours so you never edit the same file. Suggested split: T2 owns
 `app/(doctor)/**`, you own `app/(patient)/prescription/**`, `app/(pharmacy)/**` and
 `app/api/pharmacies/**`.
 
-## Build order (from the V1 build plan §6, ~6h)
+## Context pack — read these, in this order
 
-| # | Task | Est | Note |
-|---|---|---|---|
-| 1 | Seed pharmacies + stock | 1h | ✅ done in `db/002_seed.sql` |
-| 2 | `GET /api/pharmacies/nearby` + haversine | 1h | `NEARBY_RADIUS_KM` |
-| 3 | Patient prescription view + print/download | 1.5h | |
-| 4 | Nearby list with per-medicine status + selection | 1.5h | in stock / low / out of stock |
-| 5 | Routing → `pharmacy_queue` insert | 1h | unique constraint on prescription_id |
+Run `/t3` and this happens for you. Doing it by hand:
+
+| Order | File | Why |
+|---|---|---|
+| 1 | `agents/status/T3.md` | where you left off — always first |
+| 2 | this file | scope, boundaries, build order |
+| 3 | `db/001_schema.sql` (`pharmacies`, `stock_items`, `prescriptions`, `pharmacy_queue`, `bills`) | the tables you own |
+| 4 | `db/002_seed.sql` | the data you are building against, including the deliberate stock gap |
+| 5 | `apps/web/app/globals.css` (top comment) | the frozen theme rules |
+| 6 | `Docs/Project_Vaidhya_Technical_Architecture_v1.md` §11 and §11.1 | the how — read both, they are short |
+| 7 | `PROGRESS.md` | what the other lanes changed while you were away |
+
+## Build order → architecture section → files
+
+From the V1 build plan §6 (~6h). **Arch §** is the section of
+`Docs/Project_Vaidhya_Technical_Architecture_v1.md` that tells you how to build it.
+
+| # | Task | Est | Arch § | Files | Status |
+|---|---|---|---|---|---|
+| 1 | Seed pharmacies + stock | 1h | §3.2 | `db/002_seed.sql` | ✅ done |
+| 2 | `GET /api/pharmacies/nearby` + haversine | 1h | **§11** | `app/api/pharmacies/nearby/route.ts` | todo |
+| 3 | Patient prescription view + print/download | 1.5h | **§11.1** | `app/(patient)/prescription/` | todo |
+| 4 | Nearby list, per-medicine status, selection | 1.5h | **§11** | `app/(patient)/prescription/` | todo |
+| 5 | Routing → `pharmacy_queue` insert | 1h | **§11**, §3.2 | `app/api/pharmacies/route.ts` | todo |
+| p2 | Pharmacist portal: stock CRUD, queue, billing | — | **§11** | `app/(pharmacy)/` | phase 2 |
+
+Config keys: `NEARBY_RADIUS_KM` in `apps/web/.env.local.example`.
+Database write ownership — which tables you may write: build plan §2.5.
 
 ## Rules that are not negotiable
 

@@ -10,22 +10,43 @@ If something there is wrong, say so in your status file and let T2 fix it.
 and curl. **You never open a browser** — if you find yourself debugging in a browser,
 you are in T2's lane.
 
-## Build order (from the V1 build plan §4)
+## Context pack — read these, in this order
 
-| # | Task | Est | Note |
-|---|---|---|---|
-| 1 | FastAPI scaffold, CORS, `/health` | 0.5h | ✅ done — T2 needed the port live |
-| 2 | `LLMProvider` → LM Studio + Groq fallback | 1h | fall back on `EDGE_LLM_TIMEOUT_MS` |
-| 3 | `STTProvider` → Groq Whisper turbo | 1h | returns native + English |
-| 4 | `TTSProvider` → edge-tts, serve `/audio/*.mp3` | 1h | |
-| 5 | `TranslateProvider` → cache lookup then model | 1.5h | a cache miss is normal, not an error |
-| 6 | Session store | 1h | ✅ scaffolded — dict + SQLite persist |
-| 7 | **Voicebot turn loop** + JSON schema + retry | 2.5h | the core |
-| 8 | **Nurse-finding state machine** | 1.5h | ✅ scaffolded — lazy, no timers |
-| 9 | Rules engine + urgency tiering | 1h | ✅ scaffolded — condition parser done |
-| 10 | Report builder + Supabase write | 1h | one LLM call for the summary |
-| 11 | MQTT client — queue publish + consult relay | 1.5h | QoS 1, stable client_id |
-| + | Specialist AI slice (`/api/specialist` + panel) | 1h | one general button, no picker |
+Run `/t1` and this happens for you. Doing it by hand:
+
+| Order | File | Why |
+|---|---|---|
+| 1 | `agents/status/T1.md` | where you left off — always first |
+| 2 | this file | scope, boundaries, build order |
+| 3 | `services/edge-ai/contracts.py` | the frozen HTTP + MQTT contract you must satisfy |
+| 4 | `Docs/Project_Vaidhya_Technical_Architecture_v1.md` §§ for your task (table below) | the how |
+| 5 | `Docs/Project_Vaidhya_V1_Build_Plan.md` §4 | estimates and the definition of done |
+| 6 | `PROGRESS.md` | what the other lanes changed while you were away |
+
+Never read the whole architecture document. Read the sections your current task maps to.
+
+## Build order → architecture section → files
+
+From the V1 build plan §4. **Arch §** is the section of
+`Docs/Project_Vaidhya_Technical_Architecture_v1.md` that tells you how to build it.
+
+| # | Task | Est | Arch § | Files | Status |
+|---|---|---|---|---|---|
+| 1 | FastAPI scaffold, CORS, `/health` | 0.5h | §1, §2 | `main.py` | ✅ done |
+| 2 | `LLMProvider` → LM Studio + Groq fallback | 1h | **§4**, §5.3 | `providers/llm.py` | todo |
+| 3 | `STTProvider` → Groq Whisper turbo | 1h | **§4** | `providers/stt.py` | todo |
+| 4 | `TTSProvider` → edge-tts, serve `/audio/*.mp3` | 1h | **§4**, §5.3 | `providers/tts.py` | todo |
+| 5 | `TranslateProvider` → cache then model | 1.5h | **§4**, §3.2 (`question_bank`) | `providers/translate.py` | todo |
+| 6 | Session store | 1h | §3.3 | `voicebot/session.py` | ✅ scaffolded |
+| 7 | **Voicebot turn loop** + JSON schema + retry | 2.5h | **§5.1, §5.2** | `voicebot/orchestrator.py`, `prompts.py` | todo — the core |
+| 8 | **Nurse-finding state machine** | 1.5h | **§5.4** | `voicebot/session.py` | ✅ scaffolded |
+| 9 | Rules engine + urgency tiering | 1h | **§6** | `rules/engine.py` | ✅ parser done |
+| 10 | Report builder + Supabase write | 1h | **§7**, §3.2 | `report/builder.py` | todo |
+| 11 | MQTT client — queue publish + consult relay | 1.5h | **§8.1–8.4** | `mqtt_client.py` | todo |
+| + | Specialist AI slice | 1h | **§10** | `apps/web/app/api/specialist/route.ts` | todo |
+| p2 | Offline SQLite + outbox sync | — | **§3.3** | `sync/outbox.py` | phase 2 — demo step 7 |
+
+Config keys for all of the above: §15 (Node A block) and `services/edge-ai/.env.example`.
 
 ## Rules that are not negotiable
 

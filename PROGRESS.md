@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T17:24:36Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T17:30:54Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -143,6 +143,7 @@ Last self-reported update: 2026-08-07T22:45:00Z
 ## Recent commits
 
 ```
+922c3b2 · 07 Aug 22:54 · Regenerate the board now that status files are committed
 6f6f75a · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
 6309026 · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
 30bf9dc · 07 Aug 22:36 · Move all planning documents into Docs/
@@ -150,7 +151,6 @@ dd328f2 · 07 Aug 21:40 · Updated questions
 9d59d23 · 07 Aug 18:46 · Update Problem_Statement.md
 afcbff5 · 07 Aug 18:31 · Update QuestionAnswer.md with new questions
 93bab18 · 07 Aug 18:24 · Update QuestionAnswer.md
-fe802d7 · 07 Aug 18:23 · Update QuestionAnswer.md
 ```
 
 ---

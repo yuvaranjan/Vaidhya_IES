@@ -5,11 +5,22 @@ with an AI agent, none of them reading each other's code.
 
 ## Before you write code
 
-**Read [agents/README.md](agents/README.md).** It is the protocol: which lane owns which
-files, and how you report what you did. Then read your lane's brief in `agents/lanes/`.
+**Type your lane's slash command. That is the whole onboarding.**
 
-**Check [PROGRESS.md](PROGRESS.md)** to see what everyone else is doing. It is generated —
-never edit it by hand.
+| You are | Type | It loads |
+|---|---|---|
+| T1 · Yuvaranjan · edge-AI | `/t1` | status, lane brief, `contracts.py`, board — then picks your next task |
+| T2 · Yadav · portal | `/t2` | status, lane brief, the shared contract, `edgeApi.ts`, board |
+| T3 · pharmacy | `/t3` | status, lane brief, the pharmacy schema and seed, board |
+| T4 · seed data | `/t4` | status, lane brief, the seed, and who is blocked on you |
+
+Each one also tells you which sections of the architecture document your current task
+maps to, so you read fifty lines instead of eight hundred. Add an argument to aim it:
+`/t1 task 7` or `/t2 build the vitals dashboard`.
+
+If you would rather do it by hand: read [agents/README.md](agents/README.md) for the
+protocol, then your lane's brief in `agents/lanes/`, then [PROGRESS.md](PROGRESS.md) for
+what everyone else is doing. PROGRESS.md is generated — never edit it by hand.
 
 ## The two rules that keep this repo from collapsing
 

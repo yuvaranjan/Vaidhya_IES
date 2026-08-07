@@ -153,6 +153,16 @@ uvicorn main:app --reload --port 8000
 
 ---
 
+## Starting a coding session
+
+Open Claude Code in the repo root and type your lane's command — `/t1`, `/t2`, `/t3` or
+`/t4`. It loads your status file, your lane brief, the contract you code against and the
+team board, tells you which architecture sections your next task maps to, and picks up
+where you left off. Add an argument to aim it: `/t1 task 7`.
+
+The commands are committed in `.claude/commands/`, so they arrive with a fresh clone. If
+they do not appear in a session that was already open, restart Claude Code.
+
 ## Everyday commands
 
 | Command | What it does |

@@ -11,6 +11,25 @@ has time to read anyone else's code. So the rule is:
 
 ---
 
+## Starting a session — one command
+
+Type your lane's slash command. It reads your status file, your lane brief, the contract
+you code against and the team board; tells you which architecture sections your next task
+maps to; and reminds you what you may not touch.
+
+| Lane | Command | With an argument |
+|---|---|---|
+| T1 | `/t1` | `/t1 task 7` · `/t1 wire up edge-tts` |
+| T2 | `/t2` | `/t2 task 5` · `/t2 build the vitals dashboard` |
+| T3 | `/t3` | `/t3 the nearby endpoint` |
+| T4 | `/t4` | `/t4 extend the translation cache` |
+
+No argument means "take the next unblocked task, preferring one that moves a demo step".
+
+The commands live in `.claude/commands/` and are committed, so a fresh clone has them.
+
+---
+
 ## The one file you own
 
 | Lane | Person | Code area | Status file — **you alone write this** |
@@ -119,12 +138,15 @@ this move?* If the answer is none, it is phase 2.
 ```
 agents/
 ├─ README.md            this file — the protocol
-├─ demo-steps.json      the twelve §17 steps, with an owner each
-├─ lanes/               per-lane briefs: scope, boundaries, definition of done
+├─ demo-steps.json      the §17 demo steps, with an owner each
+├─ lanes/               per-lane briefs: scope, boundaries, context pack,
+│  │                    and the task → architecture section → files map
 │  ├─ T1-edge-ai.md     T2-portal.md · T3-pharmacy.md · T4-seed.md
 └─ status/              THE LIVING STATE — one file per lane, single writer each
    ├─ T1.md · T2.md · T3.md · T4.md
    └─ _template.md
+
+.claude/commands/       the /t1 /t2 /t3 /t4 session starters
 ```
 
 Related: `PROGRESS.md` (generated board) · `SETUP.md` (install and run) ·

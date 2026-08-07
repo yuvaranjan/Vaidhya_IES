@@ -8,20 +8,42 @@ then tell T1. You do not fix Python.
 **You run:** `npm run dev` on `:3000`. With `NEXT_PUBLIC_USE_MOCK_AI=true` you need
 nothing else — no Python, no model, no GPU.
 
-## Build order (from the V1 build plan §5)
+## Context pack — read these, in this order
 
-| # | Task | Est | Note |
-|---|---|---|---|
-| 1 | Next.js scaffold, theme tokens, layout shell | 1h | ✅ done |
-| 2 | `lib/mockAi.ts` | 0.5h | ✅ done — unblocks everything below |
-| 3 | Patient login (phone + OTP `123456`) | 1h | `iron-session` cookie |
-| 4 | Doctor login (phone + password) | 1h | bcrypt against the seed |
-| 5 | Vitals dashboard — 5 fields → POST → auto-navigate | 1.5h | temp, BP, pulse, SpO2, resp |
-| 6 | **AI assistant page** — mic, playback, dual transcript | 2.5h | |
-| 7 | Nurse-finding panel — from the 2s poll, inline | 1h | must not navigate away |
-| 8 | Doctor queue — MQTT live + claim CAS + 409 toast | 2h | |
-| 9 | Doctor consult — report view + MQTT chat | 2h | |
-| 10 | Doctor prescription form | 1h | patient-side view is T3's |
+Run `/t2` and this happens for you. Doing it by hand:
+
+| Order | File | Why |
+|---|---|---|
+| 1 | `agents/status/T2.md` | where you left off — always first |
+| 2 | this file | scope, boundaries, build order |
+| 3 | `packages/shared/http.ts` + `mqtt.ts` | the frozen contract — the shapes you code against |
+| 4 | `apps/web/lib/edgeApi.ts` + `lib/mockAi.ts` | how you call the service, and what the mock returns |
+| 5 | `apps/web/app/globals.css` (top comment) | the frozen theme rules |
+| 6 | `Docs/Project_Vaidhya_Technical_Architecture_v1.md` §§ for your task (table below) | the how |
+| 7 | `PROGRESS.md` | what the other lanes changed while you were away |
+
+Never read the whole architecture document. Read the sections your current task maps to.
+
+## Build order → architecture section → files
+
+From the V1 build plan §5. **Arch §** is the section of
+`Docs/Project_Vaidhya_Technical_Architecture_v1.md` that tells you how to build it.
+
+| # | Task | Est | Arch § | Files | Status |
+|---|---|---|---|---|---|
+| 1 | Scaffold, theme tokens, layout shell | 1h | §2 | `app/layout.tsx`, `globals.css` | ✅ done |
+| 2 | `lib/mockAi.ts` | 0.5h | build plan §2.3–2.4 | `lib/mockAi.ts` | ✅ done |
+| 3 | Patient login (phone + OTP `123456`) | 1h | **§14** | `app/(patient)/login/`, `lib/auth.ts` | todo |
+| 4 | Doctor login (phone + password) | 1h | **§14** | `app/(doctor)/doctor/login/` | todo |
+| 5 | Vitals dashboard — 5 fields → auto-navigate | 1.5h | §5.4 (two-pass), §6 | `app/(patient)/intake/` | todo |
+| 6 | **AI assistant page** — mic, playback, dual transcript | 2.5h | **§5.1**, §5.3 | `app/(patient)/consult/` | todo — biggest screen |
+| 7 | Nurse-finding panel, inline from the 2s poll | 1h | **§5.4** | `app/(patient)/consult/` | todo |
+| 8 | Doctor queue — MQTT live + claim CAS + 409 | 2h | **§9**, §8.1–8.3 | `app/(doctor)/doctor/queue/`, `lib/mqtt.ts` | todo |
+| 9 | Doctor consult — report view + MQTT chat | 2h | **§8.1–8.4**, §7 | `app/(doctor)/doctor/consult/[visitId]/` | todo |
+| 10 | Doctor prescription form | 1h | §11.1, §3.2 | `app/(doctor)/doctor/prescribe/[visitId]/` | todo |
+
+Config keys: §15 (Node B block) and `apps/web/.env.local.example`.
+Database write ownership — which tables you may write: build plan §2.5.
 
 ## Rules that are not negotiable
 

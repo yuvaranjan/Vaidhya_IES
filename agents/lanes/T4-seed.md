@@ -7,13 +7,34 @@ Your work comes **first** in wall-clock time and it is almost entirely about unb
 other people. Nothing you build is on the demo's critical path until step 12, and
 everything you seed is.
 
-## Build order (from the V1 build plan §7, ~3h)
+## Context pack — read these, in this order
 
-| # | Task | Est | Why it is first |
-|---|---|---|---|
-| 1 | **3 fake `diagnostic_reports` rows** | 1h | ✅ done — unblocks T2 steps 8–9 immediately |
-| 2 | Seed jurisdictions, patients, doctors | 1h | ✅ done — everyone needs login accounts |
-| 3 | Translation cache — ~20 phrasings × 4 languages | 1h | ✅ 5 seeded; optional, the system runs empty |
+Run `/t4` and this happens for you. Doing it by hand:
+
+| Order | File | Why |
+|---|---|---|
+| 1 | `agents/status/T4.md` | where you left off — always first |
+| 2 | this file | scope, boundaries, build order |
+| 3 | `db/001_schema.sql` | every table you seed, and its constraints |
+| 4 | `db/002_seed.sql` | what is already seeded — extend it, do not restart it |
+| 5 | `Docs/Project_Vaidhya_Technical_Architecture_v1.md` §3.1–3.2 | ownership split and the schema rationale |
+| 6 | `PROGRESS.md` | who is blocked on you right now |
+
+## Build order → architecture section → files
+
+From the V1 build plan §7 (~3h). **Arch §** is the section of
+`Docs/Project_Vaidhya_Technical_Architecture_v1.md` that tells you how to build it.
+
+| # | Task | Est | Arch § | Files | Status |
+|---|---|---|---|---|---|
+| 1 | **3 fake `diagnostic_reports` rows** | 1h | §7, §3.2 | `db/002_seed.sql` | ✅ done — unblocked T2 |
+| 2 | Seed jurisdictions, patients, doctors | 1h | **§14**, §3.2 | `db/002_seed.sql` | ✅ done |
+| 3 | Translation cache — ~20 phrasings × 4 languages | 1h | §3.2 (`question_bank`) | `db/002_seed.sql` | ✅ 5 seeded |
+| 4 | Branching rules the engine can fire | — | **§6** | `db/002_seed.sql` | ✅ 7 seeded |
+| p2 | Twilio SMS/IVR — demo step 12 | — | **§13** | `app/api/twilio/`, `scheduled_reminders` | phase 2 ⚠️ risk |
+| p2 | Analytics dashboard — demo step 13 | — | **§12** | `app/(analytics)/dashboard/`, `regional_case_counts` | phase 2 |
+
+Config keys: §15 (Node B block) — the `TWILIO_*` and `FOLLOW_UP_DELAY_SECONDS` keys.
 
 The starter seed is already applied. Extending it — more patients, more rules, more
 realistic transcripts — is high-value and low-risk work whenever you have a spare hour.
