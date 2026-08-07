@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { getMockVisit } from "@/lib/mockQueue";
 import { ConsultClient } from "./ConsultClient";
+import { SpecialistPanel } from "@/components/SpecialistPanel";
 
 export default async function DoctorConsultPage({
   params,
@@ -23,6 +24,9 @@ export default async function DoctorConsultPage({
   return (
     <div className="min-h-screen bg-bg pt-6">
       <ConsultClient visit={visit} doctorId={session.doctorId} />
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-6">
+        <SpecialistPanel visitId={visitId} />
+      </div>
     </div>
   );
 }

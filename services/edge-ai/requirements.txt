@@ -21,3 +21,5 @@ supabase>=2.9                   # report write
 # Optional — local translation. Heavy; the cache + LLM path works without it.
 # transformers>=4.44
 # torch
+
+paho-mqtt>=2.1.0
