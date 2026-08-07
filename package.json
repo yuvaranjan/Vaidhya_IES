@@ -1,0 +1,19 @@
+{
+  "name": "vaidhya",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project Vaidhya - edge-AI rural telemedicine. Monorepo root.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace web",
+    "build": "npm run build --workspace web",
+    "start": "npm run start --workspace web",
+    "lint": "npm run lint --workspace web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
