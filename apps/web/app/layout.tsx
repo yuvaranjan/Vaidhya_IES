@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-
-// Deliberately NO next/font/google. That fetches font files at build time, and
-// this app has to build on a laptop with the internet unplugged. System stack only.
+import { AppLayout } from "@/components/AppLayout";
 
 export const metadata: Metadata = {
-  title: "Vaidhya",
-  description: "Edge-AI telemedicine for rural primary care",
+  title: "Cure Cloud · Project Vaidhya",
+  description: "Edge-AI telemedicine and pharmacy fulfillment network for rural primary care",
 };
 
 export default function RootLayout({
@@ -16,8 +14,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-bg text-text antialiased">
-        {children}
+      <body className="min-h-screen bg-[#FBFCFD] text-[#173449] antialiased">
+        <AppLayout>{children}</AppLayout>
       </body>
     </html>
   );

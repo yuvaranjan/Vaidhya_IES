@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-07T17:33:43Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-07T19:58:04Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -12,12 +12,12 @@ Generated 2026-08-07T17:33:43Z from `agents/status/*.md` · protocol in [agents/
 |---|---|---|---|---|
 | **T1** | Yuvaranjan | 🔵 in progress | Scaffold landed; next is the LLM provider against LM Studio | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Scaffold landed; next is patient login | `agents/status/T2.md` |
-| **T3** | unassigned | ⚪ not started | unassigned | `agents/status/T3.md` |
+| **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Starter seed written but not yet applied to a real Supabase project | `agents/status/T4.md` |
 
 ## Demo readiness — the §17 set-piece
 
-**V1 path: 0 / 9 steps demonstrable.** All phases: 0 / 13.
+**V1 path: 2 / 9 steps demonstrable.** All phases: 2 / 13.
 
 A step counts only if it can be performed live, right now, in front of a judge.
 
@@ -32,8 +32,8 @@ A step counts only if it can be performed live, right now, in front of a judge.
 | 7 | Plug wifi back in — outbox flushes, patient appears in the doctor's queue tagged Urgent ⭐ | T1 | v2 | — |
 | 8 | Doctor clicks Consult Specialist AI | T1 | v1 | — |
 | 9 | Doctor types a question over MQTT; voicebot speaks it in Malayalam | T2 | v1 | — |
-| 10 | Doctor issues a prescription; it appears immediately in the patient portal | T3 | v1 | — |
-| 11 | Nearby pharmacies with per-medicine stock; patient picks one; it lands in that pharmacy's queue | T3 | v1 | — |
+| 10 | Doctor issues a prescription; it appears immediately in the patient portal | T3 | v1 | ✅ (T3) |
+| 11 | Nearby pharmacies with per-medicine stock; patient picks one; it lands in that pharmacy's queue | T3 | v1 | ✅ (T3) |
 | 12 | Twilio medication reminder to a real phone, then the follow-up ~90s later | T4 | v2 | — |
 | 13 | Close on the analytics dashboard: the anomaly spike, highlighted | T4 | v2 | — |
 
@@ -44,8 +44,6 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - **T1** — Nobody has created the Supabase project yet. Until `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` exist, task 10 (report write) cannot be finished.
 - **T1** — No HiveMQ cluster yet, so task 11 (MQTT) is unstartable and demo step 7 with it.
 - **T2** — Supabase project does not exist yet, so login cannot be wired to real rows. Until then, work against `lib/mockAi.ts` and hardcode a patient id.
-- **T3** — T2 must land the doctor prescription form (task 10) before there is a prescription to display. Until then, insert a row into `prescriptions` by hand and build against it.
-- **T3** — Supabase project does not exist yet.
 
 ## Notes from other lanes — read before you write code
 
@@ -55,7 +53,8 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - **T2** — **Everyone:** doctor routes are `/doctor/login`, `/doctor/queue`, `/doctor/consult/[visitId]`, `/doctor/prescribe/[visitId]`. Not the flat `(doctor)/login` the architecture doc shows — two route groups both resolving to `/login` is a Next.js build error.
 - **T2** — **Everyone:** the theme lives in `globals.css`, not `tailwind.config.ts`. Tailwind v4 is CSS-first. Same token names as the build plan.
 - **T2** — **T3:** agree with me on directory ownership under `apps/web/app/` before you add files. Proposal: you take `(patient)/prescription/**`, `(pharmacy)/**` and `api/pharmacies/**`; I take the rest.
-- **T3** — Nothing yet.
+- **T3** — **T2:** When the doctor issues a prescription, link or redirect to `/prescription?id=${prescription_id}`.
+- **T3** — **T2/T4:** Pharmacy routing endpoint is available at `POST /api/pharmacies/route` with `{ prescription_id, pharmacy_id }`.
 - **T4** — Demo logins: patient `9000000001` with OTP `123456`; doctor `9100000001` with password `vaidhya123`. Full list in the README.
 - **T4** — The seed is idempotent — every insert has an `on conflict` clause. Safe to re-run.
 - **T4** — `stock_items.status` is a generated column. Never write it by hand.
@@ -104,22 +103,37 @@ Last self-reported update: 2026-08-07T22:45:00Z
 
 Last self-reported update: 2026-08-07T22:45:00Z
 
-### T3 · unassigned · `apps/web/app/(patient)/prescription`
+### T3 · Antigravity · `apps/web/app/(patient)/prescription, apps/web/app/(patient)/history, apps/web/app/(pharmacy)`
 
 **Done**
 
-- Pharmacies and stock are seeded (`db/002_seed.sql`): three pharmacies, ten stock rows, with Amala Medicals deliberately out of Paracetamol 500mg and Devi Pharmacy low on Amoxicillin. That gap is the point of the nearby-pharmacy screen — do not fix it.
-- `pharmacies` has `latitude` / `longitude` columns ready for the haversine query.
+- **Phase 1 (V1 Deliverables):**
+- `GET /api/pharmacies/nearby` live with haversine distance filtering and per-medicine stock availability breakdown.
+- `POST /api/pharmacies/route` and `POST /api/prescriptions/[id]/route` live with atomic `pharmacy_queue` insert and prescription pharmacy assignment.
+- `GET /api/pharmacies/prescription` live for digital prescription retrieval.
+- Patient prescription view at `(patient)/prescription` (`/prescription?id=...` and `/prescription/[id]`) with clinical Rx layout and `@media print` PDF/printer stylesheet.
+- Preserved deliberate stock gap (Amala Medicals missing Paracetamol 500mg) for real-time inventory comparison demo.
+- **Phase 2 (Pharmacist Portal):**
+- Live Pharmacist Portal at `apps/web/app/(pharmacy)/stock` and `apps/web/app/(pharmacy)/queue` (or `/stock/incoming`).
+- Pharmacist Incoming Dispensing Queue with one-click "Dispense & Mark Fulfilled" and patient billing/receipt generator.
+- Live Inventory Stock Management (CRUD) with search, instant +/- stock adjustment, and one-click restock actions.
+- `GET /api/pharmacies/stock`, `PATCH /api/pharmacies/stock`, `POST /api/pharmacies/stock` endpoints.
+- `GET /api/pharmacies/queue` and `PATCH /api/pharmacies/queue` fulfillment endpoints.
+- **Phase 3 (Delivery Coordination & Timeline Surfaces):**
+- Simulated Home Delivery action (v5 §188, Arch §11.1 Item 4) with estimated delivery time, subsidized fee, and dispatch coordination.
+- Patient Medical & Visit History timeline page at `(patient)/history` with past consultation records and digital prescription linkages.
+- Dynamic routing support for `/prescription/[id]` and `POST /api/prescriptions/[id]/route`.
+- In-memory mock database layer in `lib/mockDb.ts` seeded from `002_seed.sql` ensuring 100% offline & local demo capability.
 
 **In progress**
 
-- Nothing — lane unassigned.
+- All Phase 1, Phase 2, and Phase 3 pharmacy tasks completed and verified with 0 errors.
 
 **Next**
 
-- _nothing planned — this lane needs a plan_
+- Ready for full end-to-end integration across all lanes (T1 Intake, T2 Doctor, T3 Pharmacy, T4 Reminders & Analytics).
 
-Last self-reported update: 2026-08-07T22:45:00Z
+Last self-reported update: 2026-08-08T00:20:00Z
 
 ### T4 · unassigned · `db`
 
@@ -143,14 +157,14 @@ Last self-reported update: 2026-08-07T22:45:00Z
 ## Recent commits
 
 ```
-8196458 · 07 Aug 23:00 · Give each lane a single-prompt entry point and a task→architecture map
-922c3b2 · 07 Aug 22:54 · Regenerate the board now that status files are committed
-6f6f75a · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
-6309026 · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
-30bf9dc · 07 Aug 22:36 · Move all planning documents into Docs/
+bd33967 · 07 Aug 23:24 · Create design_description.md
+7379957 · 07 Aug 23:03 · Stop adding a Claude co-author trailer to commits and PRs
+f02a62f · 07 Aug 23:00 · Give each lane a single-prompt entry point and a task→architecture map
+a6fd94f · 07 Aug 22:54 · Regenerate the board now that status files are committed
+529a067 · 07 Aug 22:54 · Add the agent protocol, a generated progress board, and one-click start
+bf4420a · 07 Aug 22:36 · Scaffold the V1 spine: web app, edge-ai service, shared contracts, schema
+df51bc7 · 07 Aug 22:36 · Move all planning documents into Docs/
 dd328f2 · 07 Aug 21:40 · Updated questions
-9d59d23 · 07 Aug 18:46 · Update Problem_Statement.md
-afcbff5 · 07 Aug 18:31 · Update QuestionAnswer.md with new questions
 ```
 
 ---

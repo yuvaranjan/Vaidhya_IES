@@ -1,12 +1,38 @@
-import { LanePlaceholder } from "@/components/LanePlaceholder";
+import React, { Suspense } from "react";
+import { PrescriptionView } from "@/components/PrescriptionView";
 
-export default function PatientPrescriptionPage() {
+export const dynamic = "force-dynamic";
+
+function PrescriptionContent({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
   return (
-    <LanePlaceholder lane="T3" task="Tasks 3 + 4 + 5" title="Prescription & pharmacies">
-      The patient portal <em>is</em> the delivery channel in V1 — no SMS. Show the
-      prescription with a print/download action, then the nearby pharmacies with
-      per-medicine stock status (in stock / low / out of stock). Selecting one
-      inserts into <code>pharmacy_queue</code>.
-    </LanePlaceholder>
+    <Suspense
+      fallback={
+        <div className="max-w-4xl mx-auto p-6 text-center text-muted">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-4"></div>
+          <p>Loading prescription...</p>
+        </div>
+      }
+    >
+      <PrescriptionContentInner searchParams={searchParams} />
+    </Suspense>
   );
+}
+
+async function PrescriptionContentInner({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
+  const params = await searchParams;
+  const prescriptionId = params?.id || "rx_seed_001";
+
+  return <PrescriptionView initialPrescriptionId={prescriptionId} />;
+}
+
+export default function PatientPrescriptionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
+  return <PrescriptionContent searchParams={searchParams} />;
 }

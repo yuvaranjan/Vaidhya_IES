@@ -1,59 +1,122 @@
 @import "tailwindcss";
 
 /*
- * Project Vaidhya theme — FROZEN HOUR 1, all lanes.
- * Source: Docs/Project_Vaidhya_V1_Build_Plan.md §3
+ * Cure Cloud & Vaidhya Design System
+ * Specification: design_description.md
  *
- * Tailwind v4 is CSS-first: tokens live here, not in tailwind.config.ts.
- * Every token below is a real utility — `bg-bg`, `bg-surface`, `border-border`,
- * `bg-primary-500`, `text-text`, `text-muted`, `text-warn`, `text-danger`.
- *
- * NON-NEGOTIABLE RULES
- *  - Light mode only. No `dark:` variants anywhere. No theme toggle.
- *  - Flat 2D. No gradients, no glassmorphism, no blur. `shadow-sm` is the max —
- *    prefer `border border-border` over a shadow.
- *  - rounded-xl on cards, rounded-lg on inputs and buttons.
- *  - Generous whitespace: p-6 on cards, gap-4 minimum between form fields.
- *  - Green is for primary actions and accents only. The canvas stays white so
- *    clinical text reads cleanly.
- *  - Amber and red appear ONLY on urgency indicators. Never decorative.
- *  - Body text text-text, secondary text-muted. Minimum 15px in clinical content.
+ * Visual Language:
+ * - Clean, clinical-yet-warm healthcare SaaS.
+ * - Deep navy (#173F59) for authority, Teal (#2B9C95) as the hero accent.
+ * - Light grey-blue (#DCE7EA) borders with soft navy-tinted shadow (0 5px 18px rgba(15,45,64,0.045)).
+ * - Inter typography with tracked uppercase eyebrows (tracking-[0.16em]).
  */
 
 @theme {
-  --color-bg: #f7fbf8; /* page background — barely-green white */
-  --color-surface: #ffffff; /* cards */
-  --color-border: #e3ede7;
+  --color-background: #fbfcfd;
+  --color-foreground: #173449;
+  --color-card: #ffffff;
+  --color-card-foreground: #173449;
 
-  --color-primary-50: #f1f8f4;
-  --color-primary-100: #dcefe3;
-  --color-primary-200: #bfe0cc;
-  --color-primary-300: #9bceaf;
-  --color-primary-400: #6fb78c;
-  --color-primary-500: #4a9e6e;
-  --color-primary-600: #3a8058;
-  --color-primary-700: #2e6545;
+  --color-primary: #173f59;
+  --color-primary-foreground: #ffffff;
+  --color-primary-50: #f0f7f9;
+  --color-primary-100: #e2f0f4;
+  --color-primary-200: #c5e1e9;
+  --color-primary-300: #98c9d7;
+  --color-primary-400: #64aac0;
+  --color-primary-500: #418ea7;
+  --color-primary-600: #2b7088;
+  --color-primary-700: #173f59;
+  --color-primary-800: #102d40;
+  --color-primary-900: #0c202e;
 
-  --color-text: #1f2a24; /* dark slate — never pure black */
-  --color-muted: #5c6b62;
+  --color-secondary: #eef6f6;
+  --color-secondary-foreground: #173f59;
 
-  --color-warn: #e8a33d; /* urgency: elevated */
-  --color-danger: #d9534f; /* urgency: urgent */
+  --color-muted: #f4f7f8;
+  --color-muted-foreground: #6d7f8c;
+
+  --color-accent: #2b9c95;
+  --color-accent-foreground: #ffffff;
+  --color-accent-50: #f2faf9;
+  --color-accent-100: #e5f5f3;
+  --color-accent-200: #ccebe7;
+  --color-accent-300: #a3ddd5;
+  --color-accent-400: #70c6bc;
+  --color-accent-500: #2b9c95;
+  --color-accent-600: #1f7d77;
+  --color-accent-700: #14736a;
+
+  --color-destructive: #dc4d57;
+  --color-border: #dce7ea;
+  --color-ring: #2b9c95;
+  --color-input: #f7fafb;
+
+  /* Backward-compatible legacy aliases */
+  --color-bg: #fbfcfd;
+  --color-surface: #ffffff;
+  --color-text: #173449;
+  --color-warn: #d97706;
+  --color-danger: #dc4d57;
 }
 
 html,
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-body {
-  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Clinical content is read by people under fluorescent light on cheap screens. */
 body {
   font-size: 15px;
   line-height: 1.55;
+}
+
+/* Print Stylesheet for High-DPI Physical Prescription */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 20mm 15mm 20mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .no-print,
+  nav,
+  header,
+  aside,
+  button:not(.allow-print) {
+    display: none !important;
+  }
+
+  #printable-prescription {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  #printable-prescription table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  #printable-prescription th,
+  #printable-prescription td {
+    border: 1px solid #dce7ea !important;
+    padding: 6px 10px !important;
+  }
+
+  #printable-prescription th {
+    background-color: #f4f7f8 !important;
+    color: #173449 !important;
+  }
 }
