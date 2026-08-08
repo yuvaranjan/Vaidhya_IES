@@ -4,14 +4,14 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T01:04:11Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T01:06:45Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Cross-lane integration pass done — /vitals fires rules, outbox drains to Supabase, consult relay live. Next is a real voice turn with audio. ⚠️ _behind_ | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _4h behind_ | `agents/status/T2.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Dedicated /voicebot patient route ships with a real record/playback client wired to /voice/turn. Not yet verified live with an actual recorded clip — that's still the next step. ⚠️ _2h behind_ | `agents/status/T1.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _6h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
 
@@ -92,16 +92,20 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - **Phase 2 — outbox sync worker (`sync/worker.py`).** Ticks every 10s, upserts in FK-safe order, stops at the first failure so children never precede parents, and marks rows synced only on a confirmed write. `GET /sync/status` exposes the pending count — that is the number to put on screen when the wifi comes back. **Verified against the live Supabase**: 9 queued rows drained, `pending` went 9 → 0, and the rows were confirmed present over the REST API.
 - **Specialist AI Slice** — `/api/specialist` route with a `SpecialistPanel` on the doctor's consult page. Replaced the unresolvable dynamic `import("@/lib/db")` with a static import and a null check; `tsc --noEmit` is clean.
 - **Contract change, announced:** `SessionState` gained an optional `doctor_question`. Mirrored in `packages/shared/http.ts` and `contracts.py` in the same edit. Purely additive — nothing that ignores it breaks.
+- **New `/voicebot` patient route** (`voicebot/page.tsx`, `VoicebotClient.tsx`) — a dedicated record/playback screen wired to `edgeApi`, separate from the consult assistant panel. `session_start`'s response grew `session_id` / `greeting_text_en` / `greeting_text_native` / `greeting_audio_url` alongside the existing `bot_*` fields so the new client and the old consult panel both parse it.
+- **Orchestrator: doctor-reply turns short-circuit LLM question generation.** When `session.doctor_question` is set, `_process_turn` now records the patient's answer as speaker `patient_to_doctor` and returns immediately instead of letting the bot interject with its own next question — the two conversations (intake bot, doctor relay) no longer talk over each other on the same turn. A `get_dynamic_fallback` also replaces the single static `SAFE_FALLBACK_QUESTION` on parse failure with a small heuristic (pain → severity → location → generic) so a repeated LLM parse error doesn't repeat the same question twice.
+- **`edgeApi.ts` surfaces backend-down errors distinctly** — `post`/`get` now catch fetch-level `TypeError`s and rethrow with an explicit "start the Python backend or set `NEXT_PUBLIC_USE_MOCK_AI=true`" message instead of an opaque `Failed to fetch`.
+- `edge_llm_model` default swapped to `medgemma`, `edge_llm_timeout_ms` cut from 20s to 5s so a stalled LM Studio falls through to Groq without a long hang. Not re-verified end to end against a running LM Studio since this change.
 
 **In progress**
 
-- Nothing. The lane's seams are closed.
+- Nothing committed mid-flight. The `/voicebot` route above is code-complete but its record → STT → LLM → TTS round trip hasn't been exercised live in this session — see Next.
 
 **Next**
 
 - _nothing planned — this lane needs a plan_
 
-Last self-reported update: 2026-08-08T02:40:00Z
+Last self-reported update: 2026-08-08T06:40:00Z
 
 ### T2 · Yadav · `apps/web`
 
@@ -191,6 +195,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+9a870e6 · 08 Aug 06:34 · feat(edge-ai, web): add voicebot page and wire real audio turn to consult
 9400a93 · 08 Aug 05:16 · fix(web): replace lucide-react barrel imports in Sidebar with inline SVG components to eliminate Turbopack HMR errors
 a893242 · 08 Aug 04:40 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
 654b69c · 08 Aug 04:35 · feat(analytics): add Predictive ML disease outbreak forecasting engine with 4W horizon projections
@@ -198,7 +203,6 @@ c238359 · 08 Aug 04:31 · Fix doctor clarification questions and prescription a
 2e04868 · 08 Aug 02:51 · fix(web): reconcile T2/T3 lanes onto real data, T2 UI preserved
 af200b3 · 08 Aug 02:49 · feat(edge-ai): implement /vitals rules engine, outbox sync, and MQTT relay
 6e28f36 · 08 Aug 04:20 · feat(analytics): overhaul regional disease surveillance dashboard UI with fallback generator
-f48ef51 · 08 Aug 04:10 · fix(web): add null checks for db client in analytics page and specialist route
 ```
 
 ---
