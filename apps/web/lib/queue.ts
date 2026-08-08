@@ -45,14 +45,17 @@ const SELECT =
   "diagnostic_reports(chief_complaint, summary_text, urgency_tier)";
 
 function toVisit(row: VisitRow): Visit {
-  // A visit can technically carry more than one report; the latest is the one
-  // the doctor is being asked to act on.
   const report = row.diagnostic_reports?.[row.diagnostic_reports.length - 1];
   const tier = report?.urgency_tier?.tier;
 
+  const rawName = row.patients?.name;
+  const name = (rawName && rawName !== "Unknown patient") 
+    ? rawName 
+    : `Patient (${row.visit_id.replace(/^visit_/, "").slice(0, 10)})`;
+
   return {
     visitId: row.visit_id,
-    patientName: row.patients?.name ?? "Unknown patient",
+    patientName: name,
     chiefComplaint: report?.chief_complaint ?? "Intake in progress",
     summaryText: report?.summary_text ?? "",
     urgency:

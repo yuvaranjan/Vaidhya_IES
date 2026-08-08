@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T02:52:34Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T03:25:19Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -195,6 +195,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+9e1cfed · 08 Aug 08:22 · fix: add root endpoint / and stabilize session handling
 eb093b4 · 08 Aug 08:13 · fix index
 51e11ce · 08 Aug 08:11 · chore: save current working state
 8bb4f50 · 08 Aug 08:11 · feat: implement multi-agent medical specialist LangGraph API
@@ -202,7 +203,6 @@ eb093b4 · 08 Aug 08:13 · fix index
 d99596e · 08 Aug 07:54 · fix: add root endpoint / and resolve MQTT client_id collision disconnect loop
 fa0c7f8 · 08 Aug 07:33 · deploy: add Dockerfile and Render blueprint for Python Edge AI backend
 265ad8d · 08 Aug 07:29 · config: add vercel.json monorepo configuration
-3970681 · 08 Aug 07:16 · feat: upgrade home page UI with doctor/patient launch cards and demo helpers
 ```
 
 ---
