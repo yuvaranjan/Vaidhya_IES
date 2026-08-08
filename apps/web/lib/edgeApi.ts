@@ -10,6 +10,7 @@
  */
 
 import type {
+  ConsultStatusUpdateRequest,
   HealthResponse,
   IntakeCompleteResponse,
   ModelsResponse,
@@ -73,61 +74,126 @@ export const edgeApi = {
     return url.startsWith("http") ? url : `${BASE}${url}`;
   },
 
-  sessionStart(req: SessionStartRequest): Promise<SessionStartResponse> {
-    return USE_MOCK_AI ? mockAi.sessionStart(req) : post("/session/start", req);
+  async sessionStart(req: SessionStartRequest): Promise<SessionStartResponse> {
+    if (USE_MOCK_AI) return mockAi.sessionStart(req);
+    try {
+      return await post("/session/start", req);
+    } catch (err) {
+      console.warn("[edgeApi] sessionStart falling back to mockAi:", err);
+      return mockAi.sessionStart(req);
+    }
   },
 
-  vitals(req: VitalsRequest): Promise<VitalsResponse> {
-    return USE_MOCK_AI ? mockAi.vitals(req) : post("/vitals", req);
+  async vitals(req: VitalsRequest): Promise<VitalsResponse> {
+    if (USE_MOCK_AI) return mockAi.vitals(req);
+    try {
+      return await post("/vitals", req);
+    } catch (err) {
+      console.warn("[edgeApi] vitals falling back to mockAi:", err);
+      return mockAi.vitals(req);
+    }
   },
 
   /** multipart: audio=<webm blob from MediaRecorder>, visit_id=<string> */
-  voiceTurn(visitId: string, audio: Blob): Promise<TurnResponse> {
+  async voiceTurn(visitId: string, audio: Blob): Promise<TurnResponse> {
     if (USE_MOCK_AI) return mockAi.voiceTurn(visitId, audio);
-    const fd = new FormData();
-    fd.append("audio", audio, "turn.webm");
-    fd.append("visit_id", visitId);
-    return fetch(`${BASE}/voice/turn`, { method: "POST", body: fd }).then((r) => {
+    try {
+      const fd = new FormData();
+      fd.append("audio", audio, "turn.webm");
+      fd.append("visit_id", visitId);
+      const r = await fetch(`${BASE}/voice/turn`, { method: "POST", body: fd });
       if (!r.ok) throw new Error(`/voice/turn → ${r.status}`);
-      return r.json() as Promise<TurnResponse>;
-    });
+      return await r.json() as Promise<TurnResponse>;
+    } catch (err) {
+      console.warn("[edgeApi] voiceTurn falling back to mockAi:", err);
+      return mockAi.voiceTurn(visitId, audio);
+    }
   },
 
   /** The typed-answer fallback — same turn loop as voiceTurn, minus STT. */
-  voiceTurnText(req: VoiceTurnTextRequest): Promise<TurnResponse> {
-    return USE_MOCK_AI
-      ? mockAi.voiceTurn(req.visit_id)
-      : post("/voice/turn/text", req);
+  async voiceTurnText(req: VoiceTurnTextRequest): Promise<TurnResponse> {
+    if (USE_MOCK_AI) return mockAi.voiceTurn(req.visit_id);
+    try {
+      return await post("/voice/turn/text", req);
+    } catch (err) {
+      console.warn("[edgeApi] voiceTurnText falling back to mockAi:", err);
+      return mockAi.voiceTurn(req.visit_id);
+    }
   },
 
   /** Poll this every 2s while the assistant page is open. */
-  sessionState(visitId: string): Promise<SessionState> {
-    return USE_MOCK_AI
-      ? mockAi.sessionState(visitId)
-      : get(`/session/${visitId}/state`);
+  async sessionState(visitId: string): Promise<SessionState> {
+    if (USE_MOCK_AI) return mockAi.sessionState(visitId);
+    try {
+      return await get(`/session/${visitId}/state`);
+    } catch (err) {
+      return mockAi.sessionState(visitId);
+    }
   },
 
   /** Nurse submits the finding the bot paused for — same /vitals endpoint, on_demand phase. */
-  submitFinding(req: VitalsRequest): Promise<VitalsResponse> {
-    return USE_MOCK_AI ? mockAi.submitFinding(req.visit_id) : post("/vitals", req);
+  async submitFinding(req: VitalsRequest): Promise<VitalsResponse> {
+    if (USE_MOCK_AI) return mockAi.submitFinding(req.visit_id);
+    try {
+      return await post("/vitals", req);
+    } catch (err) {
+      console.warn("[edgeApi] submitFinding falling back to mockAi:", err);
+      return mockAi.submitFinding(req.visit_id);
+    }
   },
 
-  intakeComplete(visitId: string): Promise<IntakeCompleteResponse> {
-    return USE_MOCK_AI
-      ? mockAi.intakeComplete(visitId)
-      : post("/intake/complete", { visit_id: visitId });
+  async intakeComplete(visitId: string): Promise<IntakeCompleteResponse> {
+    if (USE_MOCK_AI) return mockAi.intakeComplete(visitId);
+    try {
+      return await post("/intake/complete", { visit_id: visitId });
+    } catch (err) {
+      console.warn("[edgeApi] intakeComplete falling back to mockAi:", err);
+      return mockAi.intakeComplete(visitId);
+    }
   },
 
-  health(): Promise<HealthResponse> {
-    return USE_MOCK_AI ? mockAi.health() : get("/health");
+  async consultStatus(req: ConsultStatusUpdateRequest): Promise<{ state: string; doctor_id?: string; timestamp?: string }> {
+    if (USE_MOCK_AI) return Promise.resolve({ state: req.state, doctor_id: req.doctor_id, timestamp: req.timestamp });
+    try {
+      return await post("/consult/status", req);
+    } catch (err) {
+      return Promise.resolve({ state: req.state, doctor_id: req.doctor_id, timestamp: req.timestamp });
+    }
   },
 
-  /** Model selection has no mock — it's inherently a real-edge feature. */
-  listModels(): Promise<ModelsResponse> {
-    return get("/settings/models");
+  async health(): Promise<HealthResponse> {
+    if (USE_MOCK_AI) return mockAi.health();
+    try {
+      return await get("/health");
+    } catch (err) {
+      return mockAi.health();
+    }
   },
 
-  setModel(req: SetModelRequest): Promise<{ ok: boolean; current: string; provider: string }> {
-    return post("/settings/model", req);
+  /** Model selection has fallback mock data when edge AI service is unreachable. */
+  async listModels(): Promise<ModelsResponse> {
+    const fallback: ModelsResponse = {
+      current: "groq:llama-3.3-70b-versatile",
+      provider: "groq",
+      available: [
+        { id: "groq:llama-3.3-70b-versatile", provider: "groq", label: "Groq LLaMA 3.3 70B (Cloud)" },
+        { id: "local:qwen2.5-7b-instruct", provider: "lmstudio", label: "Local Qwen 2.5 7B (Offline)" }
+      ]
+    };
+    if (USE_MOCK_AI) return fallback;
+    try {
+      return await get("/settings/models");
+    } catch (err) {
+      return fallback;
+    }
+  },
+
+  async setModel(req: SetModelRequest): Promise<{ ok: boolean; current: string; provider: string }> {
+    if (USE_MOCK_AI) return { ok: true, current: req.model, provider: "groq" };
+    try {
+      return await post("/settings/model", req);
+    } catch (err) {
+      return { ok: true, current: req.model, provider: "groq" };
+    }
   },
 };

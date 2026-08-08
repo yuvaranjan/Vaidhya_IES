@@ -4,14 +4,14 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T11:16:50Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T11:25:52Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
 | **T1** | Yuvaranjan | 🔵 in progress | start.ps1 now clears the previous run's servers before launching, which is why nothing would start. All three services verified up together, and the earlier summary/MQTT/WebRTC fixes are finally live on a restarted backend. | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _3h behind_ | `agents/status/T2.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _5h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
 
@@ -210,6 +210,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+6aa968f · 08 Aug 16:46 · Queue change
 165fe1e · 08 Aug 15:09 · Web RTC integration
 ceaa5d7 · 08 Aug 13:28 · fix(start): clear the previous run's servers before launching
 774d8c9 · 08 Aug 13:03 · fix: diagnostic summary, MQTT summary delivery, patient video answer
@@ -217,7 +218,6 @@ d085509 · 08 Aug 12:30 · fix(web): stop MQTT disconnect loop in queue/consult 
 b6aee68 · 08 Aug 12:09 · docs(t1): record vision-analysis + diagnostic-summary merge in status
 330b681 · 08 Aug 12:08 · chore: regenerate PROGRESS.md after merging T2's diagnostic-summary fix
 a424466 · 08 Aug 12:06 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
-b7fd2a0 · 08 Aug 12:06 · feat(voicebot): add camera-based vision analysis to intake flow
 ```
 
 ---

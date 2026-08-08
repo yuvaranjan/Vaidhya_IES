@@ -83,6 +83,7 @@ class EdgeMqtt:
         if reason_code == 0:
             self.connected = True
             client.subscribe("vaidhya/consult/+/doctor_to_patient", qos=1)
+            client.subscribe("vaidhya/consult/+/status", qos=1)
             logger.info("mqtt: connected as %s", self.client_id)
         else:
             self.connected = False
@@ -103,7 +104,7 @@ class EdgeMqtt:
         if message_id and is_duplicate(message_id):
             return
 
-        # topic: vaidhya/consult/{visit_id}/doctor_to_patient
+        # topic: vaidhya/consult/{visit_id}/doctor_to_patient or /status
         parts = msg.topic.split("/")
         if len(parts) < 4:
             return
@@ -111,6 +112,14 @@ class EdgeMqtt:
 
         if self._loop is None:
             logger.warning("mqtt: message arrived before startup, dropped")
+            return
+
+        if parts[3] == "status":
+            from consult import handle_doctor_status
+
+            asyncio.run_coroutine_threadsafe(
+                handle_doctor_status(visit_id, payload), self._loop
+            )
             return
 
         from consult import handle_doctor_question

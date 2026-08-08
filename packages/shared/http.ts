@@ -145,6 +145,14 @@ export interface DoctorQuestion {
   asked_at: string;
 }
 
+export type ConsultPresenceState = "connected" | "patient_disconnected" | "reconnected";
+
+export interface ConsultStatusSignal {
+  state: ConsultPresenceState;
+  doctor_id?: string;
+  timestamp?: string;
+}
+
 export interface SessionState {
   visit_id: string;
   phase: SessionPhase;
@@ -152,6 +160,8 @@ export interface SessionState {
   turn_count: number;
   /** Added after the freeze, additively — see contracts.py for the mirror. */
   doctor_question?: DoctorQuestion | null;
+  doctor_connected?: boolean;
+  consult_status?: ConsultStatusSignal | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -176,6 +186,13 @@ export interface IntakeCompleteResponse {
 export interface ConsultAskRequest {
   visit_id: string;
   question_en: string;
+}
+
+export interface ConsultStatusUpdateRequest {
+  visit_id: string;
+  state: ConsultPresenceState;
+  doctor_id?: string;
+  timestamp?: string;
 }
 
 /* ------------------------------------------------------------------ */

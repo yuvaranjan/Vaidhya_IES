@@ -64,6 +64,10 @@ export type ConsultStatus =
 
 export interface ConsultStatusMessage {
   state: ConsultStatus;
+  visit_id?: string;
+  doctor_id?: string;
+  message_id?: string;
+  timestamp?: string;
 }
 
 export type NetworkTier = "high" | "medium" | "low";

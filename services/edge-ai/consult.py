@@ -38,6 +38,39 @@ async def handle_doctor_question(visit_id: str, payload: dict) -> None:
     await ask_patient(session, text_en, message_id=payload.get("message_id"))
 
 
+async def handle_doctor_status(visit_id: str, payload: dict) -> None:
+    """Called when the doctor joins/leaves a consult channel."""
+    session = store.get(visit_id)
+    if session is None:
+        logger.warning("consult: status for unknown visit %s", visit_id)
+        return
+
+    mark_doctor_status(
+        session,
+        state=payload.get("state") or "connected",
+        doctor_id=payload.get("doctor_id"),
+        timestamp=payload.get("timestamp"),
+    )
+
+
+def mark_doctor_status(
+    session: Session,
+    *,
+    state: str,
+    doctor_id: str | None = None,
+    timestamp: str | None = None,
+) -> dict:
+    status = {
+        "state": state,
+        "doctor_id": doctor_id,
+        "timestamp": timestamp or now_iso(),
+    }
+    session.consult_status = status
+    store.put(session)
+    logger.info("consult: %s for visit %s", state, session.visit_id)
+    return status
+
+
 async def ask_patient(
     session: Session, text_en: str, message_id: str | None = None
 ) -> DoctorQuestion:

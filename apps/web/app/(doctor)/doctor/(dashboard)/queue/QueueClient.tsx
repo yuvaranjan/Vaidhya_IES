@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { claimVisit } from "./actions";
+import { broadcastDoctorJoined } from "@/lib/consultSignal";
 import { getMqttClient, subscribeJson } from "@/lib/mqtt";
 import type { Visit as MockVisit } from "@/lib/queue";
 import { 
@@ -107,6 +108,7 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
         setError(res.error);
         setQueue((prev) => prev.filter(v => v.visitId !== visitId));
       } else if (res?.redirectUrl) {
+        broadcastDoctorJoined(visitId, doctorId);
         router.push(res.redirectUrl);
       }
     } catch (err) {

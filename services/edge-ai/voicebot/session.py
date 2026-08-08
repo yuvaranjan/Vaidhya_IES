@@ -58,6 +58,8 @@ class Session:
     # An outstanding doctor question relayed in over MQTT, as a plain dict so
     # the session stays JSON-serialisable for the SQLite mirror.
     doctor_question: dict | None = None
+    # Latest doctor/patient consult presence signal.
+    consult_status: dict | None = None
 
     @property
     def turn_count(self) -> int:
@@ -186,6 +188,7 @@ class SessionStore:
                         fired_flags=d.get("fired_flags", []),
                         branch_tags=d.get("branch_tags", []),
                         doctor_question=d.get("doctor_question"),
+                        consult_status=d.get("consult_status"),
                     )
                     self._sessions[visit_id] = session
                     return session

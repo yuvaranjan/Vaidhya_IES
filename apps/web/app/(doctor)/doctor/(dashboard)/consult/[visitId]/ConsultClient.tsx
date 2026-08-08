@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { broadcastDoctorJoined } from "@/lib/consultSignal";
+import { edgeApi } from "@/lib/edgeApi";
 import { getMqttClient, subscribeJson, publishJson } from "@/lib/mqtt";
 import { topics, createDedupe } from "@vaidhya/shared";
 import type { Visit as MockVisit } from "@/lib/queue";
-import type { PatientToDoctorMessage, DoctorToPatientMessage } from "@vaidhya/shared";
+import type { PatientToDoctorMessage, DoctorToPatientMessage, ConsultStatusMessage } from "@vaidhya/shared";
 import { WebRtcConsultHub } from "@/components/WebRtcConsultHub";
 import { 
   FileText, 
@@ -41,6 +43,31 @@ export function ConsultClient({
     setSummaryText(visit.summaryText);
     setChiefComplaint(visit.chiefComplaint);
   }, [visit.summaryText, visit.chiefComplaint]);
+
+  useEffect(() => {
+    const timestamp = new Date().toISOString();
+    broadcastDoctorJoined(visit.visitId, doctorId);
+
+    const status: ConsultStatusMessage = {
+      state: "connected",
+      visit_id: visit.visitId,
+      doctor_id: doctorId,
+      message_id: crypto.randomUUID(),
+      timestamp,
+    };
+
+    const client = getMqttClient(doctorId);
+    if (client) {
+      publishJson(client, topics.status(visit.visitId), status);
+    }
+
+    void edgeApi.consultStatus({
+      visit_id: visit.visitId,
+      state: "connected",
+      doctor_id: doctorId,
+      timestamp,
+    }).catch((err) => console.warn("[consult] status fallback failed", err));
+  }, [doctorId, visit.visitId]);
 
   useEffect(() => {
     const client = getMqttClient(doctorId);

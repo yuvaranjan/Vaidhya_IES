@@ -17,6 +17,7 @@ SessionPhase = Literal["pass_one", "conversation", "awaiting_finding", "complete
 NextAction = Literal["ask_question", "request_nurse_finding", "complete_intake"]
 UrgencyLevel = Literal["routine", "elevated", "urgent"]
 ServiceStatus = Literal["ok", "down"]
+ConsultStatus = Literal["connected", "patient_disconnected", "reconnected"]
 
 VITAL_TYPES = ("temperature", "blood_pressure", "pulse", "spo2", "respiratory_rate")
 
@@ -131,6 +132,8 @@ class SessionState(BaseModel):
     turn_count: int = 0
     # Added after the freeze, additively — mirrored in packages/shared/http.ts.
     doctor_question: DoctorQuestion | None = None
+    doctor_connected: bool = False
+    consult_status: dict | None = None
 
 
 # --- POST /intake/complete ----------------------------------------------
@@ -153,6 +156,13 @@ class IntakeCompleteResponse(BaseModel):
 class ConsultAskRequest(BaseModel):
     visit_id: str
     question_en: str
+
+
+class ConsultStatusUpdateRequest(BaseModel):
+    visit_id: str
+    state: ConsultStatus
+    doctor_id: str | None = None
+    timestamp: str | None = None
 
 
 # --- GET/POST /settings/model  (runtime model selection) -----------------

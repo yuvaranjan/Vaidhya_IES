@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from config import get_settings
 from contracts import (
     ConsultAskRequest,
+    ConsultStatusUpdateRequest,
     HealthResponse,
     IntakeCompleteRequest,
     ModelOption,
@@ -268,6 +269,7 @@ async def vitals(req: VitalsRequest):
         session.phase = "pass_one"
         session.pending_finding = None
         session.doctor_question = None
+        session.consult_status = None
         session.vitals = []
         session.fired_flags = []
         session.branch_tags = []
@@ -371,6 +373,11 @@ async def session_state(visit_id: str):
         pending_finding=as_contract(session.pending_finding),
         turn_count=session.turn_count,
         doctor_question=session.doctor_question,
+        doctor_connected=bool(
+            session.consult_status
+            and session.consult_status.get("state") in {"connected", "reconnected"}
+        ),
+        consult_status=session.consult_status,
     )
 
 
@@ -425,6 +432,23 @@ async def consult_ask(req: ConsultAskRequest):
 
     question = await ask_patient(session, req.question_en)
     return question
+
+
+@app.post("/consult/status")
+async def consult_status(req: ConsultStatusUpdateRequest):
+    """Single-laptop fallback for the doctor browser to mark a claimed consult."""
+    session = store.get(req.visit_id)
+    if not session:
+        return JSONResponse(status_code=404, content={"error": "session not found"})
+
+    from consult import mark_doctor_status
+
+    return mark_doctor_status(
+        session,
+        state=req.state,
+        doctor_id=req.doctor_id,
+        timestamp=req.timestamp,
+    )
 
 
 @app.get("/sync/status")
