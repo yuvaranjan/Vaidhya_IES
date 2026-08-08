@@ -4,13 +4,13 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T06:39:16Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T07:00:41Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Merged T2's diagnostic-summary fix (premature finalizeIntake short-circuit) with the new camera-based vision analysis on /voicebot. Verified the merged file builds and typechecks clean; still need to click through both features live in the browser before claiming anything new. ⚠️ _behind_ | `agents/status/T1.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Verified live in a browser that the doctor-queue claim bug ("Already claimed by another doctor" on a fresh or own-claimed visit) is fixed by T2's merged CAS change, and fixed a real MQTT disconnect loop in QueueClient.tsx/ConsultClient.tsx. | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
@@ -50,6 +50,7 @@ A step counts only if it can be performed live, right now, in front of a judge.
 
 - **T1** — **Everyone: read [agents/integration-log.md](../integration-log.md).** This pass deliberately crossed lane boundaries at the owner's direction, and that file is the full per-lane record — including two things that will surprise T2 (the doctor login password is `vaidhya123`, not `doctor123`; the doctor screens now read `lib/queue.ts`, not `lib/mockQueue.ts`) and a bug that made T3's Supabase path silently serve mock rows. The bullets below are the short version.
 - **T1** — **Everyone:** the edge service no longer returns `501` for anything. `/vitals` and `/consult/ask` are implemented; `/sync/status` and `/sync/flush` are new.
+- **T1** — **T2:** at the user's direction I touched two of your files — `app/(doctor)/doctor/(dashboard)/queue/QueueClient.tsx` and `.../consult/[visitId]/ConsultClient.tsx` — to remove a `disconnectMqtt()` call from each effect's cleanup that was killing the shared MQTT client on every unmount (dev double-mount, and every queue↔consult navigation). Only those two lines (+ the now-unused import) changed; no logic beyond the cleanup function was touched. Worth double-checking `WebRtcConsultHub.tsx` doesn't have the same pattern if you add more `getMqttClient` consumers.
 - **T1** — **T2:** the contract in `packages/shared/http.ts` is mirrored exactly in `services/edge-ai/contracts.py`. One additive change since the freeze — `SessionState.doctor_question`. Poll it and play `audio_url` to voice the doctor's question to the patient; the patient's next `/voice/turn` publishes the answer back.
 - **T1** — **T2:** the nurse answers a pending finding through `POST /vitals` with `phase: "on_demand"` — there is no separate endpoint. It now returns `fired_flags`, which is what the "fired rule: SpO2 < 92" badge should render.
 - **T1** — **T2:** `getMqttClient()` now returns `null` instead of throwing when `NEXT_PUBLIC_MQTT_URL` is unset. It was taking the whole doctor queue down. All three call sites are guarded and the consult box falls back to HTTP.
@@ -98,6 +99,8 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - `edge_llm_model` default swapped to `medgemma`, `edge_llm_timeout_ms` cut from 20s to 5s so a stalled LM Studio falls through to Groq without a long hang. Not re-verified end to end against a running LM Studio since this change.
 - **Fixed Consult Specialist AI (demo step 8).** `multi_agent_specialist/nodes.py` was calling `llama3-70b-8192`, which Groq decommissioned — every Diagnostician / Treatment Planner / CMO call 400'd, which surfaced in the doctor UI as "Failed to fetch multi-agent specialist opinion." Swapped to `llama-3.3-70b-versatile` (confirmed live on the account via `/v1/models`). Verified: `POST :8002/consult` returns 200 with real diagnoses/treatment plan, and `POST /api/specialist` on the Next.js side returns 200 with `confidence: "high"`, `cmo_approved: true`. **Not** yet clicked through the actual doctor consult page in a browser — API-level only.
 - **Camera-based vision analysis on `/voicebot`.** Patient can capture a photo mid-consult; it's sent to a local LM Studio vision model, the description is appended to the transcript and shown under "Diagnostic Summary" alongside `intakeResult.summary_text`. Pulled T2's `origin/main` (3 commits: WebRTC teleconsultation hub, queue-key fix, the diagnostic-summary fix) into the same branch — `VoicebotClient.tsx` had non-overlapping edits so it merged clean, no hand-resolution needed. T2's fix removed the `!intakeResult ||` clause that made `finalizeIntake()` fire on the very first turn instead of only on real completion; that clause was upstream of and unrelated to the vision feature. Also untracked `services/edge-ai/edge.db-shm` / `edge.db-wal` (binary SQLite runtime files) to match T2's own `.gitignore` broadening — they were the only real merge conflicts, both non-source. Verified: merged `npm run build` and `tsc --noEmit` both clean, Python files `py_compile` clean. **Not** yet exercised live — no photo captured through a real camera against a running LM Studio, no browser click-through of the merged diagnostic summary.
+- **Verified doctor-queue claim fix, live.** The user reported "Already claimed by another doctor" on clicking a patient in the doctor portal. Root cause was already fixed by T2's merged commit `3a88c06` ("fix doctor queue claiming") — before it, `claimVisit` (`apps/web/lib/queue.ts`) did a strict `.eq("status", "awaiting_doctor")` CAS, so re-clicking a visit your own doctor session had already claimed (status now `in_consult`) failed the CAS and returned the same 409 as a real conflict. The fix broadens the CAS to `status.eq.awaiting_doctor OR claimed_by_doctor_id.is.null OR claimed_by_doctor_id.eq.<you>` and short-circuits on an existing own-claim. Verified against live Supabase: claimed a fresh `awaiting_doctor` visit, then re-clicked the same now-`in_consult` visit — both succeeded, no false 409.
+- **Fixed a real MQTT disconnect loop** (crossed into T2's lane at the user's direction — see note below). `QueueClient.tsx` and `ConsultClient.tsx` both called `disconnectMqtt()` — which force-closes the shared, tab-wide singleton client from `lib/mqtt.ts` — in their effect cleanup. Every unmount tore the connection down: React Strict Mode's dev double-invoke (mount → cleanup → mount) closed the socket mid-handshake, and every queue↔consult navigation did the same, producing a repeating "WebSocket is closed before the connection is established" / "[mqtt] client disconnecting" loop in the console. Removed the `disconnectMqtt()` call from both cleanups (kept `unsubscribe()`), matching the "connect once per tab and reuse" comment already on `getMqttClient`. Verified live: navigated queue → consult → queue repeatedly, zero `[mqtt]` errors afterward (previously 4+ per navigation).
 
 **In progress**
 
@@ -107,7 +110,7 @@ A step counts only if it can be performed live, right now, in front of a judge.
 
 - _nothing planned — this lane needs a plan_
 
-Last self-reported update: 2026-08-08T12:00:00Z
+Last self-reported update: 2026-08-08T12:20:00Z
 
 ### T2 · Yadav · `apps/web`
 
@@ -198,6 +201,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+b6aee68 · 08 Aug 12:09 · docs(t1): record vision-analysis + diagnostic-summary merge in status
 330b681 · 08 Aug 12:08 · chore: regenerate PROGRESS.md after merging T2's diagnostic-summary fix
 a424466 · 08 Aug 12:06 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
 b7fd2a0 · 08 Aug 12:06 · feat(voicebot): add camera-based vision analysis to intake flow
@@ -205,7 +209,6 @@ b7fd2a0 · 08 Aug 12:06 · feat(voicebot): add camera-based vision analysis to i
 b699404 · 08 Aug 08:55 · fix: resolve React key prop warning and improve patient name rendering in doctor queue
 9e1cfed · 08 Aug 08:22 · fix: add root endpoint / and stabilize session handling
 eb093b4 · 08 Aug 08:13 · fix index
-51e11ce · 08 Aug 08:11 · chore: save current working state
 ```
 
 ---

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { claimVisit } from "./actions";
-import { getMqttClient, subscribeJson, disconnectMqtt } from "@/lib/mqtt";
+import { getMqttClient, subscribeJson } from "@/lib/mqtt";
 import type { Visit as MockVisit } from "@/lib/queue";
 import { 
   Users, 
@@ -68,10 +68,11 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
       }
     );
 
-    return () => {
-      unsubscribe();
-      disconnectMqtt();
-    };
+    // Don't disconnectMqtt() here: the client is a shared, tab-wide singleton
+    // (see lib/mqtt.ts). Tearing it down on every unmount fought React Strict
+    // Mode's double-invoke and every queue<->consult navigation, producing a
+    // "WebSocket closed before connection established" reconnect loop.
+    return unsubscribe;
   }, [doctorId]);
 
   const handleClaim = async (visitId: string) => {

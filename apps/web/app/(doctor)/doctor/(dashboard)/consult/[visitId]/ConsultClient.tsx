@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getMqttClient, subscribeJson, publishJson, disconnectMqtt } from "@/lib/mqtt";
+import { getMqttClient, subscribeJson, publishJson } from "@/lib/mqtt";
 import { topics, createDedupe } from "@vaidhya/shared";
 import type { Visit as MockVisit } from "@/lib/queue";
 import type { PatientToDoctorMessage, DoctorToPatientMessage } from "@vaidhya/shared";
@@ -72,10 +72,11 @@ export function ConsultClient({
       }
     );
 
-    return () => {
-      unsubscribe();
-      disconnectMqtt();
-    };
+    // Don't disconnectMqtt() here: the client is a shared, tab-wide singleton
+    // (see lib/mqtt.ts). Tearing it down on every unmount fought React Strict
+    // Mode's double-invoke and every queue<->consult navigation, producing a
+    // "WebSocket closed before connection established" reconnect loop.
+    return unsubscribe;
   }, [doctorId, visit.visitId]);
 
   const handleSendMessage = (e: React.FormEvent) => {
