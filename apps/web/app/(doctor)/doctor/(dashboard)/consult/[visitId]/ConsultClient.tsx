@@ -34,7 +34,30 @@ export function ConsultClient({
 
   useEffect(() => {
     const client = getMqttClient(doctorId);
-    if (!client) return;
+    if (!client) {
+      // Single-laptop fallback polling when no MQTT broker is configured
+      const interval = setInterval(async () => {
+        try {
+          const base = process.env.NEXT_PUBLIC_EDGE_AI_URL ?? "http://localhost:8000";
+          const res = await fetch(`${base}/consult/${visit.visitId}/answers`);
+          if (res.ok) {
+            const data = await res.json();
+            setMessages((prev) => {
+              const newMsgs = [...prev];
+              let changed = false;
+              for (const ans of data.answers) {
+                if (!newMsgs.some(m => m.message_id === ans.message_id)) {
+                  newMsgs.push(ans);
+                  changed = true;
+                }
+              }
+              return changed ? newMsgs : prev;
+            });
+          }
+        } catch (e) {}
+      }, 3000);
+      return () => clearInterval(interval);
+    }
 
     const isDuplicate = createDedupe(200);
 

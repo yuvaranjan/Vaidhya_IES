@@ -109,7 +109,7 @@ async def build_and_publish(session: Session) -> IntakeCompleteResponse:
         )
         enqueue(conn, "diagnostic_reports", report_id, report_row)
 
-    session.phase = "complete"
+    # session.phase is NOT forced to complete here, so early reports don't stop the bot.
 
     # 4. Best-effort immediate drain, so an online demo shows the queue update
     #    instantly instead of waiting up to a tick. Offline this fails in

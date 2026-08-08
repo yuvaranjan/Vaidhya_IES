@@ -64,11 +64,6 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Vaidhya edge-ai", version="0.1.0", lifespan=lifespan)
 
-@app.get("/")
-async def root():
-    return {"status": "ok", "service": "vaidhya-edge-ai"}
-
-
 # The patient browser is on the same laptop, on :3000.
 app.add_middleware(
     CORSMiddleware,
@@ -182,44 +177,56 @@ async def health() -> HealthResponse:
 
 @app.post("/session/start")
 async def session_start(req: SessionStartRequest):
-    from voicebot.session import Session, store
-    from providers.tts import get_tts
-    from providers.translate import get_translate
+    try:
+        from voicebot.session import Session, store
+        from providers.tts import get_tts
+        from providers.translate import get_translate
+        
+        # Reuse an in-flight session rather than replacing it. The nurse's Pass One
+        # vitals — and the urgency flags they fired — arrive before this call, and
+        # constructing a fresh Session here silently discarded them, which is how a
+        # 2-flag visit came out routine.
+        session = store.get(req.visit_id)
+        if session is None:
+            session = Session(visit_id=req.visit_id, patient_id=req.patient_id, language=req.language)
+        else:
+            session.patient_id = req.patient_id or session.patient_id
+            session.language = req.language
     
-    # Reuse an in-flight session rather than replacing it. The nurse's Pass One
-    # vitals — and the urgency flags they fired — arrive before this call, and
-    # constructing a fresh Session here silently discarded them, which is how a
-    # 2-flag visit came out routine.
-    session = store.get(req.visit_id)
-    if session is None:
-        session = Session(visit_id=req.visit_id, patient_id=req.patient_id, language=req.language)
-    else:
-        session.patient_id = req.patient_id or session.patient_id
-        session.language = req.language
-
-    store.put(session)
-
-    # The visit row is written locally first — it is the parent of every reading
-    # and report the outbox will later push, so it has to exist offline too.
-    from sync.worker import record_visit
-
-    record_visit(session)
-
-
-    greeting_en = "Hello, I am Vaidhya. How can I help you today?"
-    translate = get_translate()
-    bot_text_native = await translate.to_native(greeting_en, req.language)
-    tts = get_tts()
-    audio_url = await tts.speak(bot_text_native, req.language)
-    return {
-        "session_id": session.visit_id,
-        "greeting_text_en": greeting_en,
-        "greeting_text_native": bot_text_native,
-        "greeting_audio_url": audio_url,
-        "bot_text_en": greeting_en,
-        "bot_text_native": bot_text_native,
-        "bot_audio_url": audio_url,
-    }
+        store.put(session)
+    
+        # The visit row is written locally first — it is the parent of every reading
+        # and report the outbox will later push, so it has to exist offline too.
+        from sync.worker import record_visit
+    
+        record_visit(session)
+    
+    
+        greeting_en = "Hello, I am Vaidhya. How can I help you today?"
+        translate = get_translate()
+        bot_text_native = await translate.to_native(greeting_en, req.language)
+        tts = get_tts()
+        audio_url = await tts.speak(bot_text_native, req.language)
+        return {
+            "session_id": session.visit_id,
+            "greeting_text_en": greeting_en,
+            "greeting_text_native": bot_text_native,
+            "greeting_audio_url": audio_url,
+            "bot_text_en": greeting_en,
+            "bot_text_native": bot_text_native,
+            "bot_audio_url": audio_url,
+        }
+    except Exception:
+        logger.error("/session/start failed", exc_info=True)
+        return {
+            "session_id": req.visit_id,
+            "greeting_text_en": "Hello, I am Vaidhya. How can I help you today?",
+            "greeting_text_native": "Hello, I am Vaidhya. How can I help you today?",
+            "greeting_audio_url": "",
+            "bot_text_en": "Hello, I am Vaidhya. How can I help you today?",
+            "bot_text_native": "Hello, I am Vaidhya. How can I help you today?",
+            "bot_audio_url": "",
+        }
 
 
 @app.post("/vitals", response_model=VitalsResponse)
@@ -249,6 +256,14 @@ async def vitals(req: VitalsRequest):
 
     from vitals_store import record_vitals
 
+    if req.phase == "pass_one_baseline":
+        # If the nurse is submitting baseline vitals, this is the start of a fresh triage.
+        # Clear any existing conversation history in case the user is reusing the same visit_id.
+        session.turns = []
+        session.phase = "pass_one"
+        session.pending_finding = None
+        session.doctor_question = None
+
     fired = record_vitals(session, req)
 
     if req.phase == "on_demand":
@@ -260,47 +275,73 @@ async def vitals(req: VitalsRequest):
 
 @app.post("/voice/turn")
 async def voice_turn(visit_id: str = Form(...), audio: UploadFile = File(...)):
-    session = store.get(visit_id)
-    if not session:
-        from voicebot.session import Session
-        session = Session(visit_id=visit_id, patient_id="demo_patient", language="en")
-        store.put(session)
+    try:
+        session = store.get(visit_id)
+        if not session:
+            return JSONResponse(status_code=404, content={"error": "session not found"})
+            
+        resolve_pending(session)
         
-    resolve_pending(session)
+        from voicebot.orchestrator import run_turn
+        audio_bytes = await audio.read()
+        response = await run_turn(session, audio_bytes)
     
-    from voicebot.orchestrator import run_turn
-    audio_bytes = await audio.read()
-    response = await run_turn(session, audio_bytes)
-
-    from consult import answer_doctor
-
-    answer_doctor(session, response.transcript_en)
-
-    store.put(session)
-    return response
+        # If the doctor was waiting on this turn, their answer goes back over MQTT.
+        # answer_doctor() clears the question, so the patient is not re-asked it.
+        from consult import answer_doctor
+    
+        answer_doctor(session, response.transcript_en)
+    
+        store.put(session)
+        return response
+    except Exception:
+        logger.error("/voice/turn failed", exc_info=True)
+        from contracts import TurnResponse
+        return TurnResponse(
+            transcript_native="",
+            transcript_en="",
+            bot_text_en="I'm sorry, I encountered a technical issue. Please try again.",
+            bot_text_native="I'm sorry, I encountered a technical issue. Please try again.",
+            bot_audio_url="",
+            next_action="ask_question",
+            pending_finding=None,
+            intake_done=False
+        )
 
 
 @app.post("/voice/turn/text")
 async def voice_turn_text(req: VoiceTurnTextRequest):
     """The typed-answer fallback — same turn loop as /voice/turn, minus STT."""
-    session = store.get(req.visit_id)
-    if not session:
-        from voicebot.session import Session
-        session = Session(visit_id=req.visit_id, patient_id="demo_patient", language="en")
+    try:
+        session = store.get(req.visit_id)
+        if not session:
+            return JSONResponse(status_code=404, content={"error": "session not found"})
+    
+        resolve_pending(session)
+    
+        from voicebot.orchestrator import run_text_turn
+    
+        response = await run_text_turn(session, req.text_en)
+    
+        from consult import answer_doctor
+    
+        answer_doctor(session, response.transcript_en)
+    
         store.put(session)
-
-    resolve_pending(session)
-
-    from voicebot.orchestrator import run_text_turn
-
-    response = await run_text_turn(session, req.text_en)
-
-    from consult import answer_doctor
-
-    answer_doctor(session, response.transcript_en)
-
-    store.put(session)
-    return response
+        return response
+    except Exception:
+        logger.error("/voice/turn/text failed", exc_info=True)
+        from contracts import TurnResponse
+        return TurnResponse(
+            transcript_native="",
+            transcript_en="",
+            bot_text_en="I'm sorry, I encountered a technical issue. Please try again.",
+            bot_text_native="I'm sorry, I encountered a technical issue. Please try again.",
+            bot_audio_url="",
+            next_action="ask_question",
+            pending_finding=None,
+            intake_done=False
+        )
 
 
 @app.get("/session/{visit_id}/state", response_model=SessionState)
@@ -327,14 +368,35 @@ async def session_state(visit_id: str):
 
 @app.post("/intake/complete")
 async def intake_complete(req: IntakeCompleteRequest):
-    session = store.get(req.visit_id)
+    try:
+        session = store.get(req.visit_id)
+        if not session:
+            return JSONResponse(status_code=404, content={"error": "session not found"})
+            
+        from report.builder import build_and_publish
+        return await build_and_publish(session)
+    except Exception as e:
+        logger.error("/intake/complete failed", exc_info=True)
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.get("/consult/{visit_id}/answers")
+async def consult_answers(visit_id: str):
+    """Test convenience only. Polled by doctor UI when MQTT is offline."""
+    session = store.get(visit_id)
     if not session:
-        from voicebot.session import Session
-        session = Session(visit_id=req.visit_id, patient_id="demo_patient", language="en")
-        store.put(session)
-        
-    from report.builder import build_and_publish
-    return await build_and_publish(session)
+        return {"answers": []}
+    
+    answers = []
+    for i, t in enumerate(session.turns):
+        if t.speaker == "patient_to_doctor":
+            answers.append({
+                "message_id": f"fallback_{i}",
+                "sender": "patient_voicebot",
+                "text": t.text_en,
+                "timestamp": str(t.timestamp)
+            })
+    return {"answers": answers}
 
 
 @app.post("/consult/ask")
@@ -344,9 +406,7 @@ async def consult_ask(req: ConsultAskRequest):
     the venue and both nodes end up on one laptop."""
     session = store.get(req.visit_id)
     if not session:
-        from voicebot.session import Session
-        session = Session(visit_id=req.visit_id, patient_id="demo_patient", language="en")
-        store.put(session)
+        return JSONResponse(status_code=404, content={"error": "session not found"})
 
     from consult import ask_patient
 

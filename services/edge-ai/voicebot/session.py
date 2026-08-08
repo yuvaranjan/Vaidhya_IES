@@ -102,7 +102,7 @@ def _mark_not_obtained(f: Finding, visit_id: str) -> None:
     The nurse never answered. Record that as a fact rather than as an absence —
     the doctor needs to see "not obtained", not a silently missing row.
     """
-    with sqlite3.connect(get_settings().edge_db_path) as conn:
+    with sqlite3.connect(get_settings().edge_db_path, timeout=5) as conn:
         conn.execute(
             "insert into vitals_readings "
             "(reading_id, visit_id, type, phase, requested_at, status) "
@@ -131,13 +131,36 @@ class SessionStore:
         self._sessions: dict[str, Session] = {}
         self._db_path = get_settings().edge_db_path
         self._init_db()
+        self._load_sessions()
 
     def _init_db(self) -> None:
         # .../services/edge-ai/voicebot/session.py → repo root is 3 levels up
         schema = Path(__file__).resolve().parents[3] / "db" / "edge_schema.sql"
-        with sqlite3.connect(self._db_path) as conn:
+        with sqlite3.connect(self._db_path, timeout=5) as conn:
+            conn.execute('PRAGMA journal_mode=WAL')
+            conn.execute('PRAGMA busy_timeout=5000')
             if schema.exists():
                 conn.executescript(schema.read_text(encoding="utf-8"))
+
+    def _load_sessions(self) -> None:
+        try:
+            with sqlite3.connect(self._db_path, timeout=5) as conn:
+                for row in conn.execute("SELECT payload FROM sessions"):
+                    try:
+                        data = json.loads(row[0])
+                        turns_data = data.pop('turns', [])
+                        pf_data = data.pop('pending_finding', None)
+                        
+                        session = Session(**data)
+                        session.turns = [Turn(**t) for t in turns_data]
+                        if pf_data:
+                            session.pending_finding = Finding(**pf_data)
+                            
+                        self._sessions[session.visit_id] = session
+                    except Exception:
+                        pass
+        except sqlite3.OperationalError:
+            pass
 
     def get(self, visit_id: str) -> Session | None:
         session = self._sessions.get(visit_id)
@@ -172,7 +195,7 @@ class SessionStore:
 
     def put(self, session: Session) -> None:
         self._sessions[session.visit_id] = session
-        with sqlite3.connect(self._db_path) as conn:
+        with sqlite3.connect(self._db_path, timeout=5) as conn:
             conn.execute(
                 "insert into sessions (visit_id, payload, updated_at) values (?,?,?) "
                 "on conflict(visit_id) do update set payload=excluded.payload, "

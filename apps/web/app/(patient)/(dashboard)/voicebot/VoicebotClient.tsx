@@ -144,7 +144,7 @@ export function VoicebotClient({
       } catch {
         // Polling error silently swallowed
       }
-    }, 2000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [isSessionStarted, visitId]);

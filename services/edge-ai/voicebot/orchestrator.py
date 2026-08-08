@@ -65,8 +65,21 @@ async def run_turn(session: Session, audio_bytes: bytes) -> TurnResponse:
     stt = get_stt()
 
     # 1. STT
-    transcript = await stt.transcribe(audio_bytes, session.language)
-    return await _process_turn(session, transcript.english, transcript.native)
+    try:
+        transcript = await stt.transcribe(audio_bytes, session.language)
+        return await _process_turn(session, transcript.english, transcript.native)
+    except Exception as e:
+        logger.error("STT failed: %s", e, exc_info=True)
+        return TurnResponse(
+            transcript_native="",
+            transcript_en="",
+            bot_text_en="I'm having trouble hearing you. Could you please type your answer instead?",
+            bot_text_native="I'm having trouble hearing you. Could you please type your answer instead?",
+            bot_audio_url="",
+            next_action="ask_question",
+            pending_finding=as_contract(session.pending_finding),
+            intake_done=False
+        )
 
 
 async def run_text_turn(session: Session, text_en: str) -> TurnResponse:
@@ -99,12 +112,22 @@ async def _process_turn(
     if is_doctor_reply:
         # Patient is replying directly to the attending doctor!
         # Skip LLM question generation so AI doesn't interject with unrelated questions.
+        ack_en = "I have sent your reply to the doctor."
+        ack_native = await translate.to_native(ack_en, session.language)
+        ack_audio = await tts.speak(ack_native, session.language)
+
+        session.turns.append(Turn(
+            speaker="bot",
+            text_en=ack_en,
+            text_native=ack_native
+        ))
+
         return TurnResponse(
             transcript_native=patient_text_native,
             transcript_en=patient_text_en,
-            bot_text_en="",
-            bot_text_native="",
-            bot_audio_url="",
+            bot_text_en=ack_en,
+            bot_text_native=ack_native,
+            bot_audio_url=ack_audio,
             next_action="ask_question",
             pending_finding=as_contract(session.pending_finding),
             intake_done=False

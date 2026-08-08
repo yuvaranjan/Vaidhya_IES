@@ -36,17 +36,46 @@ class EdgeTTSProvider:
         os.makedirs(self.settings.audio_dir, exist_ok=True)
 
     async def speak(self, text: str, language: str) -> str:
+        import time, logging, asyncio
+        logger = logging.getLogger(__name__)
+
+        try:
+            now = time.time()
+            for f in os.listdir(self.settings.audio_dir):
+                if f.endswith(".mp3"):
+                    p = os.path.join(self.settings.audio_dir, f)
+                    if os.path.isfile(p) and now - os.path.getmtime(p) > 3600:
+                        os.remove(p)
+        except Exception as e:
+            logger.warning("TTS cleanup failed: %s", e)
+            pass
+
         voice = VOICES.get(language, VOICES["en"])
         filename = f"{uuid.uuid4().hex}.mp3"
         filepath = os.path.join(self.settings.audio_dir, filename)
         
         communicate = edge_tts.Communicate(text, voice)
-        await communicate.save(filepath)
+        try:
+            await asyncio.wait_for(communicate.save(filepath), timeout=15.0)
+        except Exception as e:
+            logger.warning("TTS generation failed or timed out: %s", e)
+            return ""
         
         return f"/audio/{filename}"
 
     async def healthy(self) -> bool:
-        return True
+        import asyncio, os, uuid
+        filepath = os.path.join(self.settings.audio_dir, f"{uuid.uuid4().hex}_health.mp3")
+        try:
+            communicate = edge_tts.Communicate("test", VOICES["en"])
+            await asyncio.wait_for(communicate.save(filepath), timeout=5.0)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            return True
+        except Exception:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            return False
 
 
 def get_tts() -> TTSProvider:
