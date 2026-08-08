@@ -49,6 +49,6 @@ async def run_consultation(request: ConsultRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    # Running on port 8001 to avoid conflicting with port 8000
-    print("Starting Multi-Agent API on port 8001...")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # Running on port 8002 to avoid conflicting with port 8000 (and 8001 which is blocked)
+    print("Starting Multi-Agent API on port 8002...")
+    uvicorn.run(app, host="0.0.0.0", port=8002)

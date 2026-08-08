@@ -80,71 +80,35 @@ export async function POST(req: Request) {
       }
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      // Return a mock response if no API key is provided
-      return NextResponse.json({
-        opinion: "The patient presents with tachycardia and elevated BP. Consider an ECG to rule out acute coronary syndrome.",
-        confidence: "moderate",
-        evidence: [{ source: "vitals", detail: "HR 110, BP 140/90" }],
-        reasoning: "Chest pain + tachycardia in this setting requires cardiac rule-out.",
-        red_flags: ["Chest pain", "Tachycardia"]
-      });
-    }
-
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // ---------------------------------------------------------
+    // NEW: Multi-Agent Specialist Call
+    // ---------------------------------------------------------
+    // We hit our new locally-hosted LangGraph FastAPI server on port 8002
+    const langgraphRes = await fetch("http://localhost:8002/consult", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        // llama-3.3-70b-versatile does not support response_format:json_schema
-        // at all (400 on any request) — it only accepts the loose json_object
-        // mode, which enforces "valid JSON", not field names. That is exactly
-        // how this crashed: Groq returned syntactically valid but differently
-        // shaped JSON (assessment/recommendations/... instead of
-        // opinion/confidence/...), and nothing caught the mismatch before it
-        // reached the UI. gpt-oss-20b is confirmed (tested directly against
-        // the Groq API) to support strict json_schema on this account.
-        model: "openai/gpt-oss-20b",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Review this patient case:\n\n${clinicalContext}` }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: "specialist_opinion", schema, strict: true }
-        }
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patient_data: clinicalContext })
     });
 
-    if (!groqRes.ok) {
-      const errorText = await groqRes.text();
-      console.error("Groq API error:", errorText);
-      return NextResponse.json({ error: "Failed to fetch specialist opinion" }, { status: 500 });
+    if (!langgraphRes.ok) {
+      console.error("LangGraph API error:", await langgraphRes.text());
+      return NextResponse.json({ error: "Failed to fetch multi-agent specialist opinion" }, { status: 500 });
     }
 
-    const groqData = await groqRes.json();
-    const content = groqData.choices?.[0]?.message?.content;
-    const result = JSON.parse(content);
+    const langgraphData = await langgraphRes.json();
 
-    // strict:true is Groq's guarantee, not a law of physics — validate before
-    // handing it to the UI rather than trusting it blindly a second time.
-    const CONFIDENCE_LEVELS = ["high", "moderate", "low"];
-    if (
-      typeof result?.opinion !== "string" ||
-      !CONFIDENCE_LEVELS.includes(result?.confidence) ||
-      !Array.isArray(result?.evidence) ||
-      typeof result?.reasoning !== "string" ||
-      !Array.isArray(result?.red_flags)
-    ) {
-      console.error("Specialist API: model returned an unexpected shape:", result);
-      return NextResponse.json(
-        { error: "The specialist model returned an unexpected response. Try again." },
-        { status: 502 },
-      );
-    }
+    // Map the new multi-agent response into the old format the UI expects
+    const result = {
+      opinion: `**DIAGNOSES:**\n${langgraphData.diagnoses}\n\n**TREATMENT PLAN:**\n${langgraphData.treatment_plan}`,
+      confidence: langgraphData.cmo_approved ? "high" : "low",
+      evidence: [
+        { source: "finding", detail: "Processed by Diagnostician Agent" },
+        { source: "finding", detail: "Processed by Treatment Planner Agent" },
+        { source: "transcript", detail: langgraphData.cmo_approved ? "Audited and Approved by CMO" : "Rejected by CMO (Hallucination Risk)" }
+      ],
+      reasoning: `CMO Approved: ${langgraphData.cmo_approved}\nRevisions Required to fix Hallucinations: ${langgraphData.revisions_required}`,
+      red_flags: langgraphData.cmo_rejection_reasons || []
+    };
 
     return NextResponse.json(result);
   } catch (error) {

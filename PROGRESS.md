@@ -4,13 +4,13 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T02:43:28Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T06:36:01Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Dedicated /voicebot patient route ships with a real record/playback client wired to /voice/turn. Not yet verified live with an actual recorded clip — that's still the next step. ⚠️ _2h behind_ | `agents/status/T1.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Fixed Consult Specialist AI (step 8) — Groq had decommissioned the model the LangGraph agents called. Verified the API layer end to end; still need to click the actual button in the doctor UI before claiming the step. ⚠️ _2h behind_ | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _7h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
@@ -96,16 +96,17 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - **Orchestrator: doctor-reply turns short-circuit LLM question generation.** When `session.doctor_question` is set, `_process_turn` now records the patient's answer as speaker `patient_to_doctor` and returns immediately instead of letting the bot interject with its own next question — the two conversations (intake bot, doctor relay) no longer talk over each other on the same turn. A `get_dynamic_fallback` also replaces the single static `SAFE_FALLBACK_QUESTION` on parse failure with a small heuristic (pain → severity → location → generic) so a repeated LLM parse error doesn't repeat the same question twice.
 - **`edgeApi.ts` surfaces backend-down errors distinctly** — `post`/`get` now catch fetch-level `TypeError`s and rethrow with an explicit "start the Python backend or set `NEXT_PUBLIC_USE_MOCK_AI=true`" message instead of an opaque `Failed to fetch`.
 - `edge_llm_model` default swapped to `medgemma`, `edge_llm_timeout_ms` cut from 20s to 5s so a stalled LM Studio falls through to Groq without a long hang. Not re-verified end to end against a running LM Studio since this change.
+- **Fixed Consult Specialist AI (demo step 8).** `multi_agent_specialist/nodes.py` was calling `llama3-70b-8192`, which Groq decommissioned — every Diagnostician / Treatment Planner / CMO call 400'd, which surfaced in the doctor UI as "Failed to fetch multi-agent specialist opinion." Swapped to `llama-3.3-70b-versatile` (confirmed live on the account via `/v1/models`). Verified: `POST :8002/consult` returns 200 with real diagnoses/treatment plan, and `POST /api/specialist` on the Next.js side returns 200 with `confidence: "high"`, `cmo_approved: true`. **Not** yet clicked through the actual doctor consult page in a browser — API-level only.
 
 **In progress**
 
-- Nothing committed mid-flight. The `/voicebot` route above is code-complete but its record → STT → LLM → TTS round trip hasn't been exercised live in this session — see Next.
+- Nothing committed mid-flight. The `/voicebot` route above is code-complete but its record → STT → LLM → TTS round trip hasn't been exercised live in this session — see Next. Same caveat for the Specialist AI fix: API-verified, not yet clicked through the browser.
 
 **Next**
 
 - _nothing planned — this lane needs a plan_
 
-Last self-reported update: 2026-08-08T06:40:00Z
+Last self-reported update: 2026-08-08T09:15:00Z
 
 ### T2 · Yadav · `apps/web`
 
@@ -195,14 +196,14 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
-3a1c4dd · 08 Aug 08:11 · chore: save current working state
-4d27c1c · 08 Aug 08:11 · feat: implement multi-agent medical specialist LangGraph API
-c26d6de · 08 Aug 06:36 · docs(t1): update status for voicebot route and orchestrator changes
-9a870e6 · 08 Aug 06:34 · feat(edge-ai, web): add voicebot page and wire real audio turn to consult
-9400a93 · 08 Aug 05:16 · fix(web): replace lucide-react barrel imports in Sidebar with inline SVG components to eliminate Turbopack HMR errors
-a893242 · 08 Aug 04:40 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
-654b69c · 08 Aug 04:35 · feat(analytics): add Predictive ML disease outbreak forecasting engine with 4W horizon projections
-c238359 · 08 Aug 04:31 · Fix doctor clarification questions and prescription auto-redirect
+eb093b4 · 08 Aug 08:13 · fix index
+51e11ce · 08 Aug 08:11 · chore: save current working state
+8bb4f50 · 08 Aug 08:11 · feat: implement multi-agent medical specialist LangGraph API
+0eb16cb · 08 Aug 08:13 · fix: restore sessions from SQLite and auto-initialize missing sessions on intake complete
+d99596e · 08 Aug 07:54 · fix: add root endpoint / and resolve MQTT client_id collision disconnect loop
+fa0c7f8 · 08 Aug 07:33 · deploy: add Dockerfile and Render blueprint for Python Edge AI backend
+265ad8d · 08 Aug 07:29 · config: add vercel.json monorepo configuration
+3970681 · 08 Aug 07:16 · feat: upgrade home page UI with doctor/patient launch cards and demo helpers
 ```
 
 ---

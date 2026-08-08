@@ -28,8 +28,8 @@ class CMOReviewOutput(BaseModel):
 # ---------------------------------------------------------
 def get_llm():
     # Using temperature 0 for deterministic, analytical outputs
-    # Using Llama 3 70B via Groq for high-speed reasoning
-    return ChatGroq(model="llama3-70b-8192", temperature=0.0)
+    # llama3-70b-8192 was decommissioned by Groq; llama-3.3-70b-versatile is its replacement.
+    return ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0)
 
 # ---------------------------------------------------------
 # Agent Nodes

@@ -25,7 +25,9 @@ import {
   Heart,
   Wind,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Camera,
+  X
 } from "lucide-react";
 
 type Turn = {
@@ -75,6 +77,13 @@ export function VoicebotClient({
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [isSwitchingModel, setIsSwitchingModel] = useState(false);
 
+  const [isVisionActive, setIsVisionActive] = useState(false);
+  const [visionStatus, setVisionStatus] = useState<"idle" | "processing" | "done">("idle");
+  const [visionDescription, setVisionDescription] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const visionStream = useRef<MediaStream | null>(null);
+
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -105,7 +114,132 @@ export function VoicebotClient({
 
   useEffect(() => {
     checkHealthAndModels();
+    return () => {
+      stopVisionCamera();
+    };
   }, []);
+
+  const startVisionCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+      });
+      visionStream.current = stream;
+      setIsVisionActive(true);
+      setVisionStatus("idle");
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      alert('Could not access the camera for vision analysis.');
+    }
+  };
+
+  const stopVisionCamera = () => {
+    if (visionStream.current) {
+      visionStream.current.getTracks().forEach(track => track.stop());
+      visionStream.current = null;
+    }
+    setIsVisionActive(false);
+  };
+
+  const captureAndAnalyze = async () => {
+    if (!videoRef.current || !canvasRef.current || !visionStream.current) return;
+    
+    setVisionStatus("processing");
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageDataUrl = canvas.toDataURL('image/jpeg');
+    
+    stopVisionCamera();
+    setIsProcessing(true);
+    
+    try {
+        const response = await fetch('http://localhost:1234/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'local-model',
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an expert medical AI assistant. Analyze the provided image and give a detailed, medically-oriented description. Identify any visible conditions, anatomical structures, or abnormalities using precise medical terminology. Limit your description to 125 words maximum."
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "Please analyze this image based on the system instructions. Strictly limit your response to a maximum of 125 words." },
+                            { type: "image_url", image_url: { url: imageDataUrl } }
+                        ]
+                    }
+                ],
+                temperature: 0.5,
+                max_tokens: 1024
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to connect to LM Studio.');
+        }
+
+        const data = await response.json();
+        const description = data.choices[0].message.content;
+        setVisionDescription(description);
+        
+        setTranscript((prev) => [
+          ...prev,
+          {
+            role: "nurse",
+            textNative: `[Visual Analysis Uploaded] ${description}`,
+            textEn: `[Visual Analysis Uploaded] ${description}`,
+          }
+        ]);
+        
+        const res = await edgeApi.voiceTurnText({ 
+          visit_id: visitId, 
+          text_en: `Visual analysis of patient condition: ${description}. Please acknowledge this visual finding.` 
+        });
+
+        const botText = res.bot_text_native || res.bot_text_en;
+        if (botText) {
+          setTranscript((prev) => [
+            ...prev,
+            {
+              role: "bot",
+              textNative: botText,
+              textEn: res.bot_text_en || botText,
+              audioUrl: res.bot_audio_url,
+            },
+          ]);
+          if (res.bot_audio_url) playAudio(res.bot_audio_url);
+        }
+
+        if (res.intake_done || res.next_action === "complete_intake") {
+          await finalizeIntake();
+        }
+
+    } catch (error: any) {
+        console.error('Vision Analysis Error:', error);
+        alert(`Vision analysis failed: ${error.message}`);
+    } finally {
+        setVisionStatus("done");
+        setIsProcessing(false);
+    }
+  };
 
   // Autoplay first greeting audio as soon as session starts and initial bot turn is available
   useEffect(() => {
@@ -908,6 +1042,40 @@ export function VoicebotClient({
                 <div ref={chatEndRef} />
               </div>
 
+              {/* Vision Camera UI */}
+              {isVisionActive && (
+                <div className="p-4 bg-card border-t border-border animate-in slide-in-from-bottom-2 shrink-0">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-accent flex items-center gap-1.5">
+                      <Camera className="w-4 h-4" /> Condition Visual Analysis
+                    </h3>
+                    <button onClick={stopVisionCamera} className="text-muted-foreground hover:text-foreground">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="relative rounded-xl overflow-hidden bg-black h-48 flex items-center justify-center border border-border">
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                    <canvas ref={canvasRef} className="hidden" />
+                    {visionStatus === "processing" && (
+                      <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white p-4 text-center z-10">
+                        <RefreshCw className="w-6 h-6 animate-spin mb-3 text-accent" />
+                        <span className="text-sm font-bold tracking-wide">Analyzing with Local Vision Model...</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button
+                      onClick={captureAndAnalyze}
+                      disabled={visionStatus === "processing"}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-accent text-white rounded-lg text-xs font-bold shadow-sm hover:opacity-90 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Capture & Analyze
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Pending Nurse Finding Banner */}
               {pendingFinding && (
                 <div className="p-4 bg-[#F4F0FB] border-t border-b border-[#E4D9F5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -956,6 +1124,17 @@ export function VoicebotClient({
                 </form>
                 
                 <div className="hidden sm:block text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">OR</div>
+
+                {/* Vision / Camera Button */}
+                <button
+                  type="button"
+                  onClick={startVisionCamera}
+                  disabled={isProcessing || !!pendingFinding || isVisionActive}
+                  title="Capture condition photo for AI analysis"
+                  className="h-11 px-4 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center justify-center bg-secondary text-primary hover:bg-secondary/80 border border-border shrink-0"
+                >
+                  <Camera className="w-4 h-4 text-accent" />
+                </button>
 
                 {/* Mic Recording Button */}
                 <button
@@ -1026,6 +1205,12 @@ export function VoicebotClient({
                   <div className="bg-background p-4 rounded-xl border border-border">
                     <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-1">Diagnostic Summary</p>
                     <p className="text-foreground text-xs leading-relaxed font-medium">{intakeResult.summary_text}</p>
+                    {visionDescription && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2 flex items-center gap-1.5"><Camera className="w-3.5 h-3.5 text-accent" /> Visual Analysis Attached</p>
+                        <p className="text-foreground text-xs leading-relaxed font-medium italic">{visionDescription}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Urgency Rules list */}

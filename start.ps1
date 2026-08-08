@@ -124,6 +124,13 @@ if (-not $WebOnly) {
     "& '$venvPy' -m uvicorn main:app --reload --port 8000"
   ) -WindowStyle Normal
   Ok "edge-ai   -> http://localhost:8000/health"
+
+  Start-Process powershell -ArgumentList @(
+    "-NoExit", "-Command",
+    "Set-Location '$root\multi_agent_specialist'; " +
+    "& '.\venv\Scripts\python.exe' api.py"
+  ) -WindowStyle Normal
+  Ok "specialist-> http://localhost:8002/consult"
 }
 
 Start-Process powershell -ArgumentList @(
