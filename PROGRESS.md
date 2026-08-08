@@ -4,14 +4,14 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T06:36:56Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T06:38:27Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Fixed Consult Specialist AI (step 8) — Groq had decommissioned the model the LangGraph agents called. Verified the API layer end to end; still need to click the actual button in the doctor UI before claiming the step. | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _11h behind_ | `agents/status/T2.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Fixed Consult Specialist AI (step 8) — Groq had decommissioned the model the LangGraph agents called. Verified the API layer end to end; still need to click the actual button in the doctor UI before claiming the step. ⚠️ _behind_ | `agents/status/T1.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
 
@@ -197,14 +197,14 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+a424466 · 08 Aug 12:06 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
 b7fd2a0 · 08 Aug 12:06 · feat(voicebot): add camera-based vision analysis to intake flow
+3a88c06 · 08 Aug 12:01 · feat: Add WebRTC teleconsultation hub and fix doctor queue claiming
+b699404 · 08 Aug 08:55 · fix: resolve React key prop warning and improve patient name rendering in doctor queue
+9e1cfed · 08 Aug 08:22 · fix: add root endpoint / and stabilize session handling
 eb093b4 · 08 Aug 08:13 · fix index
 51e11ce · 08 Aug 08:11 · chore: save current working state
 8bb4f50 · 08 Aug 08:11 · feat: implement multi-agent medical specialist LangGraph API
-0eb16cb · 08 Aug 08:13 · fix: restore sessions from SQLite and auto-initialize missing sessions on intake complete
-d99596e · 08 Aug 07:54 · fix: add root endpoint / and resolve MQTT client_id collision disconnect loop
-fa0c7f8 · 08 Aug 07:33 · deploy: add Dockerfile and Render blueprint for Python Edge AI backend
-265ad8d · 08 Aug 07:29 · config: add vercel.json monorepo configuration
 ```
 
 ---
