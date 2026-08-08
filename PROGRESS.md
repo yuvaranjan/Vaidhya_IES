@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T07:58:30Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T09:39:29Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -210,6 +210,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+ceaa5d7 · 08 Aug 13:28 · fix(start): clear the previous run's servers before launching
 774d8c9 · 08 Aug 13:03 · fix: diagnostic summary, MQTT summary delivery, patient video answer
 d085509 · 08 Aug 12:30 · fix(web): stop MQTT disconnect loop in queue/consult clients
 b6aee68 · 08 Aug 12:09 · docs(t1): record vision-analysis + diagnostic-summary merge in status
@@ -217,7 +218,6 @@ b6aee68 · 08 Aug 12:09 · docs(t1): record vision-analysis + diagnostic-summary
 a424466 · 08 Aug 12:06 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
 b7fd2a0 · 08 Aug 12:06 · feat(voicebot): add camera-based vision analysis to intake flow
 3a88c06 · 08 Aug 12:01 · feat: Add WebRTC teleconsultation hub and fix doctor queue claiming
-b699404 · 08 Aug 08:55 · fix: resolve React key prop warning and improve patient name rendering in doctor queue
 ```
 
 ---

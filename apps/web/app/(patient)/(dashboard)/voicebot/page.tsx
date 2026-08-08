@@ -13,7 +13,7 @@ export default async function VoicebotPage() {
   try {
     const session = await getSession();
     visitId = session.visitId;
-    patientId = session.patientId;
+    patientId = session.patientId || "pat_001";
   } catch {
     // If running unauthenticated or standalone testing mode
   }

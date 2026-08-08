@@ -100,3 +100,32 @@ export async function getNetworkMetrics(pc: RTCPeerConnection): Promise<NetworkS
     bitrateKbps,
   };
 }
+
+export async function applyNetworkTierParameters(pc: RTCPeerConnection, tier: NetworkTier) {
+  const senders = pc.getSenders();
+  const videoSender = senders.find((s) => s.track?.kind === "video");
+  if (!videoSender) return;
+
+  const params = videoSender.getParameters();
+  if (!params.encodings || params.encodings.length === 0) {
+    params.encodings = [{}];
+  }
+
+  if (tier === "high") {
+    delete params.encodings[0].maxBitrate;
+    params.encodings[0].scaleResolutionDownBy = 1;
+  } else if (tier === "medium") {
+    params.encodings[0].maxBitrate = 500000; // 500 kbps
+    params.encodings[0].scaleResolutionDownBy = 2;
+  } else {
+    params.encodings[0].maxBitrate = 150000; // 150 kbps
+    params.encodings[0].scaleResolutionDownBy = 4;
+  }
+
+  try {
+    await videoSender.setParameters(params);
+  } catch (err) {
+    console.warn("[webrtc] Failed to apply network tier parameters:", err);
+  }
+}
+

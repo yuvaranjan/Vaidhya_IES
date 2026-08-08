@@ -53,7 +53,7 @@ export function VoicebotClient({
   initialPatientId?: string;
 }) {
   const [visitId] = useState(() => initialVisitId || `demo_visit_${Math.random().toString(36).substring(2, 7)}`);
-  const [patientId] = useState(() => initialPatientId || `demo_patient_${Math.random().toString(36).substring(2, 7)}`);
+  const [patientId] = useState(() => initialPatientId || "pat_001");
 
   const [language, setLanguage] = useState<Language>("en");
   const [isSessionStarted, setIsSessionStarted] = useState(false);

@@ -15,6 +15,7 @@ import {
   RTC_CONFIG,
   getUserMediaStream,
   getNetworkMetrics,
+  applyNetworkTierParameters,
   type NetworkStats,
 } from "@/lib/webrtc";
 import {
@@ -105,6 +106,10 @@ export function WebRtcConsultHub({ visitId, role, userId }: WebRtcConsultHubProp
             rttMs: payload.rttMs,
             packetLossPercent: payload.packetLossPercent,
           }));
+          // Adapt outgoing local stream bitrate to match the peer's reported network tier
+          if (pcRef.current) {
+            applyNetworkTierParameters(pcRef.current, payload.tier);
+          }
         }
       }
     );
@@ -126,9 +131,9 @@ export function WebRtcConsultHub({ visitId, role, userId }: WebRtcConsultHubProp
       const stats = await getNetworkMetrics(pcRef.current);
       setNetworkStats(stats);
 
-      // Adaptive degradation: Disable video if network is medium or low
-      if (stats.tier !== "high" && videoEnabled) {
-        toggleVideoTrack(false);
+      // Adapt outgoing local stream bitrate to match our local network capability
+      if (stats.tier !== "high") {
+        applyNetworkTierParameters(pcRef.current, stats.tier);
       }
 
       // Publish network telemetry to peer over MQTT
@@ -346,8 +351,8 @@ export function WebRtcConsultHub({ visitId, role, userId }: WebRtcConsultHubProp
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
           <span>
             {networkStats.tier === "medium"
-              ? "Limited Network Bandwidth: Switched automatically to Audio-Only Mode."
-              : "Poor Network Quality: Relying on real-time MQTT Chat channel below."}
+              ? "Limited Network Bandwidth: Video quality has been automatically reduced."
+              : "Poor Network Quality: Video quality severely reduced to maintain connection."}
           </span>
         </div>
       )}
