@@ -29,19 +29,41 @@ export const USE_MOCK_AI = process.env.NEXT_PUBLIC_USE_MOCK_AI === "true";
 const BASE = process.env.NEXT_PUBLIC_EDGE_AI_URL ?? "http://localhost:8000";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`${path} → ${res.status} ${await res.text()}`);
-  return res.json() as Promise<T>;
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[edgeApi] POST ${path} → ${res.status}:`, text);
+      throw new Error(`${path} → ${res.status} ${text}`);
+    }
+    return res.json() as Promise<T>;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("failed")) {
+      throw new Error(`Edge AI service unavailable at ${BASE}. Please start the Python backend on port 8000 or set NEXT_PUBLIC_USE_MOCK_AI=true in apps/web/.env.local`);
+    }
+    throw err;
+  }
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
-  return res.json() as Promise<T>;
+  try {
+    const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[edgeApi] GET ${path} → ${res.status}:`, text);
+      throw new Error(`${path} → ${res.status} ${text}`);
+    }
+    return res.json() as Promise<T>;
+  } catch (err: any) {
+    if (err.name === "TypeError" || err.message?.includes("failed")) {
+      throw new Error(`Edge AI service unavailable at ${BASE}. Please start the Python backend on port 8000 or set NEXT_PUBLIC_USE_MOCK_AI=true in apps/web/.env.local`);
+    }
+    throw err;
+  }
 }
 
 export const edgeApi = {

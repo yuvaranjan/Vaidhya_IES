@@ -2,7 +2,7 @@
 LLM provider — LM Studio (local, the offline claim) with a Groq fallback.
 
 T1 task 2 (~1h). Behaviour that matters:
-  - call LM Studio's OpenAI-compatible /chat/completions
+  - call LM Studio's OpenAI-compatible /chat/completions directly
   - if it exceeds EDGE_LLM_TIMEOUT_MS or errors, fall back to Groq and say so
   - the fallback must be visible in /health, never silent
 """
@@ -57,16 +57,15 @@ class LMStudioProvider:
         }
 
         if json_schema:
-            payload["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "response",
-                    "schema": json_schema,
-                    "strict": True,
-                }
-            }
+            msgs = [dict(m) for m in messages]
+            has_json = any("json" in str(m.get("content", "")).lower() for m in msgs)
+            if not has_json and msgs:
+                msgs[0]["content"] = msgs[0]["content"] + "\n\nRespond in valid JSON."
+            payload["messages"] = msgs
+            payload["response_format"] = {"type": "json_object"}
 
-        timeout = self.settings.edge_llm_timeout_ms / 1000.0
+        # Use larger timeout (minimum 60s) for local GPU/CPU inference in LM Studio
+        timeout = max(self.settings.edge_llm_timeout_ms / 1000.0, 60.0)
 
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
@@ -78,7 +77,7 @@ class LMStudioProvider:
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
         except Exception as e:
-            logger.warning(f"[FALLBACK] LM Studio failed ({e}), falling back to Groq...")
+            logger.warning(f"[FALLBACK] LM Studio chat/completions failed ({e}), falling back to Groq...")
             if not self.groq_client:
                 raise RuntimeError("LM Studio failed and GROQ_API_KEY is not set for fallback") from e
             return await self._complete_groq(messages, self.settings.groq_fallback_model, json_schema)
@@ -89,15 +88,16 @@ class LMStudioProvider:
         if not self.groq_client:
             raise RuntimeError("GROQ_API_KEY is not set")
         try:
+            msgs = [dict(m) for m in messages]
             completion_kwargs = {
                 "model": model,
-                "messages": messages,
+                "messages": msgs,
                 "temperature": 0.0,
             }
             if json_schema:
-                # Groq's chat endpoint only supports the loose json_object
-                # mode, not a schema — the field names in the prompt are
-                # doing the enforcing here, not the API.
+                has_json = any("json" in str(m.get("content", "")).lower() for m in msgs)
+                if not has_json and msgs:
+                    msgs[0]["content"] = msgs[0]["content"] + "\n\nRespond in valid JSON."
                 completion_kwargs["response_format"] = {"type": "json_object"}
 
             groq_resp = await self.groq_client.chat.completions.create(**completion_kwargs)

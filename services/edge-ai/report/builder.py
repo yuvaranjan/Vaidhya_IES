@@ -26,7 +26,7 @@ from voicebot.session import Session
 
 logger = logging.getLogger(__name__)
 
-SUMMARY_PROMPT = """You are Vaidhya. Summarize the intake into a succinct chief complaint (1 line) and a paragraph summary."""
+SUMMARY_PROMPT = """You are Vaidhya. Summarize the intake into a succinct chief complaint (1 line) and a paragraph summary. Return valid JSON."""
 
 async def build_and_publish(session: Session) -> IntakeCompleteResponse:
     llm = get_llm()

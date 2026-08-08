@@ -112,13 +112,28 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
     setLanguage(lang);
     try {
       const res = await edgeApi.sessionStart({ visit_id: visitId, patient_id: patientId, language: lang });
+      const textEn = res.greeting_text_en || (res as any).bot_text_en || "Hello, I am Vaidhya. How can I help you today?";
+      const textNative = res.greeting_text_native || (res as any).bot_text_native || textEn;
+      const audioUrl = res.greeting_audio_url || (res as any).bot_audio_url || "";
       setTranscript([
-        { role: "bot", textNative: res.greeting_text_native, textEn: res.greeting_text_en },
+        { 
+          role: "bot", 
+          textNative: textNative, 
+          textEn: textEn 
+        },
       ]);
-      playAudio(res.greeting_audio_url);
+      if (audioUrl) {
+        playAudio(audioUrl);
+      }
     } catch (err) {
       console.error(err);
-      alert("Failed to start session.");
+      setTranscript([
+        {
+          role: "bot",
+          textNative: "Unable to start AI session. Please verify that the edge-ai service is running on port 8000 or set NEXT_PUBLIC_USE_MOCK_AI=true in apps/web/.env.local.",
+          textEn: "Unable to start AI session. Please verify that the edge-ai service is running on port 8000 or set NEXT_PUBLIC_USE_MOCK_AI=true in apps/web/.env.local.",
+        },
+      ]);
     } finally {
       setIsStarting(false);
     }
@@ -171,17 +186,16 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
     setTextInput("");
     setIsProcessing(true);
 
-    setTranscript((prev) => [
-      ...prev,
-      { role: "patient", textNative: userText, textEn: userText },
-    ]);
-
     try {
       const res = await edgeApi.voiceTurnText({ visit_id: visitId, text_en: userText });
 
+      const botText = res.bot_text_native || res.bot_text_en;
       setTranscript((prev) => [
         ...prev,
-        { role: "bot", textNative: res.bot_text_native, textEn: res.bot_text_en },
+        { role: "patient", textNative: userText, textEn: userText },
+        ...(botText
+          ? [{ role: "bot" as const, textNative: botText, textEn: res.bot_text_en || botText }]
+          : []),
       ]);
 
       if (res.bot_audio_url) {
@@ -197,7 +211,15 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to send message.");
+      setTranscript((prev) => [
+        ...prev,
+        { role: "patient", textNative: userText, textEn: userText },
+        {
+          role: "bot",
+          textNative: "Error communicating with AI service. Please ensure edge-ai service is running on port 8000.",
+          textEn: "Error communicating with AI service. Please ensure edge-ai service is running on port 8000.",
+        },
+      ]);
     } finally {
       setIsProcessing(false);
     }
@@ -207,11 +229,28 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
     try {
       const res = await edgeApi.voiceTurn(visitId, audioBlob);
       
-      setTranscript((prev) => [
-        ...prev,
-        { role: "patient", textNative: res.transcript_native, textEn: res.transcript_en },
-        { role: "bot", textNative: res.bot_text_native, textEn: res.bot_text_en },
-      ]);
+      const newTurns: Turn[] = [];
+      const patientText = res.transcript_native || res.transcript_en;
+      if (patientText) {
+        newTurns.push({
+          role: "patient",
+          textNative: patientText,
+          textEn: res.transcript_en || patientText,
+        });
+      }
+
+      const botText = res.bot_text_native || res.bot_text_en;
+      if (botText) {
+        newTurns.push({
+          role: "bot",
+          textNative: botText,
+          textEn: res.bot_text_en || botText,
+        });
+      }
+
+      if (newTurns.length > 0) {
+        setTranscript((prev) => [...prev, ...newTurns]);
+      }
 
       if (res.bot_audio_url) {
         playAudio(res.bot_audio_url);
@@ -222,7 +261,14 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to process voice turn.");
+      setTranscript((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          textNative: "Failed to process audio turn. Please check backend AI service connection.",
+          textEn: "Failed to process audio turn. Please check backend AI service connection.",
+        },
+      ]);
     } finally {
       setIsProcessing(false);
     }
@@ -258,21 +304,49 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
 
   const handleNurseFindingSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!pendingFinding) return;
+    if (!pendingFinding || isProcessing) return;
 
     const formData = new FormData(e.currentTarget);
     const val = formData.get("finding_value") as string;
+    const currentFinding = pendingFinding;
     
+    setPendingFinding(null);
+    setIsProcessing(true);
+
     try {
       await edgeApi.submitFinding({
         visit_id: visitId,
         phase: "on_demand",
-        readings: [{ type: pendingFinding.type, value_text: val }],
+        readings: [{ type: currentFinding.type, value_text: val }],
       });
-      setPendingFinding(null);
+
+      const nursePrompt = `Nurse examination finding for '${currentFinding.type}': ${val}. Please acknowledge this finding to the patient and ask your next question or complete intake.`;
+      const res = await edgeApi.voiceTurnText({ visit_id: visitId, text_en: nursePrompt });
+
+      const botText = res.bot_text_native || res.bot_text_en;
+      setTranscript((prev) => [
+        ...prev,
+        ...(botText
+          ? [{ role: "bot" as const, textNative: botText, textEn: res.bot_text_en || botText }]
+          : []),
+      ]);
+
+      if (res.bot_audio_url) {
+        playAudio(res.bot_audio_url);
+      }
+
+      if (res.next_action === "request_nurse_finding" && res.pending_finding) {
+        setPendingFinding(res.pending_finding);
+      }
+
+      if (res.intake_done || res.next_action === "complete_intake") {
+        await finalizeIntake();
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to submit finding.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -401,8 +475,8 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
                 ? "bg-primary text-primary-foreground rounded-xl rounded-tr-sm" 
                 : "bg-card border border-border text-foreground rounded-xl rounded-tl-sm"
             }`}>
-              <p className="font-semibold">{t.textNative}</p>
-              {t.textEn && t.textEn !== t.textNative && (
+              <p className="font-semibold">{t.textNative || t.textEn}</p>
+              {t.textEn && t.textNative && t.textEn !== t.textNative && (
                 <p className={`text-xs mt-1.5 pt-1.5 border-t ${t.role === "patient" ? "border-white/20 text-white/80" : "border-border text-muted-foreground"}`}>
                   En: {t.textEn}
                 </p>

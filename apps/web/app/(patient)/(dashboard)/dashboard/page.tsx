@@ -64,10 +64,10 @@ export default async function PatientDashboard() {
 
           <div className="relative z-10 pt-6 mt-4 flex items-center gap-4">
             <Link 
-              href="/intake"
+              href="/voicebot"
               className="bg-primary text-primary-foreground px-6 h-11 rounded-lg font-semibold text-sm shadow-sm hover:opacity-90 transition-all flex items-center gap-2 group"
             >
-              <span>Begin New Consultation</span>
+              <span>Begin Voicebot Intake</span>
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
@@ -127,7 +127,7 @@ export default async function PatientDashboard() {
             </div>
           </div>
 
-          <Link href="/intake" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
+          <Link href="/voicebot" className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
             <span>Log new vitals</span>
             <ArrowRight className="w-3 h-3" />
           </Link>

@@ -36,6 +36,30 @@ logger = logging.getLogger(__name__)
 
 SAFE_FALLBACK_QUESTION = "Can you tell me a little more about how you are feeling?"
 
+FALLBACK_QUESTIONS = [
+    "Where exactly is the discomfort located, and does it spread anywhere else?",
+    "On a scale of 1 to 10, how severe would you rate your pain or discomfort right now?",
+    "Are you experiencing any other symptoms, such as fever, nausea, or dizziness?",
+    "Can you describe how the symptoms have changed since they started?",
+]
+
+
+def get_dynamic_fallback(session: Session, patient_text_en: str) -> str:
+    text_lower = patient_text_en.lower()
+    asked_questions = [t.text_en for t in session.turns if t.speaker == "bot"]
+
+    if "pain" in text_lower or "ache" in text_lower or "hurt" in text_lower:
+        if not any("scale" in q.lower() or "severe" in q.lower() for q in asked_questions):
+            return "On a scale of 1 to 10, how severe would you rate the pain right now?"
+        if not any("where" in q.lower() or "spread" in q.lower() for q in asked_questions):
+            return "Where exactly is the pain located, and does it spread to your back or chest?"
+
+    for q in FALLBACK_QUESTIONS:
+        if q not in asked_questions:
+            return q
+
+    return SAFE_FALLBACK_QUESTION
+
 
 async def run_turn(session: Session, audio_bytes: bytes) -> TurnResponse:
     stt = get_stt()
@@ -63,25 +87,35 @@ async def _process_turn(
     tts = get_tts()
     translate = get_translate()
 
+    is_doctor_reply = session.doctor_question is not None
+    speaker = "patient_to_doctor" if is_doctor_reply else "patient"
+
     session.turns.append(Turn(
-        speaker="patient",
+        speaker=speaker,
         text_en=patient_text_en,
         text_native=patient_text_native
     ))
 
+    if is_doctor_reply:
+        # Patient is replying directly to the attending doctor!
+        # Skip LLM question generation so AI doesn't interject with unrelated questions.
+        return TurnResponse(
+            transcript_native=patient_text_native,
+            transcript_en=patient_text_en,
+            bot_text_en="",
+            bot_text_native="",
+            bot_audio_url="",
+            next_action="ask_question",
+            pending_finding=as_contract(session.pending_finding),
+            intake_done=False
+        )
+
     # 2. LLM decision (with 1 retry)
-    # Turn count as a concrete number, not just an instruction to "keep track" —
-    # small models follow a stated fact far more reliably than an implied one.
-    # This is what makes the "never exceed question 5" rule in the system
-    # prompt actually bite instead of being ignored after a few turns.
     user_prompt = (
         f"Session Phase: {session.phase}\n"
         f"Questions asked so far (including this one): {session.turn_count}\n"
     )
 
-    # The rules engine's branch, stated to the model rather than hoped for.
-    # This is what makes "bot goes straight to respiratory questions" a
-    # consequence of SpO2 91 instead of a coincidence.
     if session.branch_tags:
         user_prompt += (
             "Vitals fired these branches — prioritise questions in these areas: "
@@ -105,20 +139,27 @@ async def _process_turn(
                 user_prompt, 
                 json_schema=VOICEBOT_SCHEMA
             )
-            parsed = json.loads(llm_resp_text)
+            raw = llm_resp_text.strip()
+            if raw.startswith("```"):
+                lines = raw.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                raw = "\n".join(lines).strip()
+            parsed = json.loads(raw)
             break
         except Exception as e:
             logger.warning(f"LLM parsing failed on attempt {attempt}: {e}")
             pass
-            
+
     if not parsed:
         logger.error("LLM failed twice, using safe fallback.")
+        fallback_q = get_dynamic_fallback(session, patient_text_en)
         parsed = {
             "next_action": "ask_question",
-            "next_question": SAFE_FALLBACK_QUESTION,
+            "next_question": fallback_q,
             "nurse_finding_request": None,
-            "extracted_facts": {},
-            "fired_branch_tags": [],
             "reasoning": "Fallback due to parse error"
         }
 
@@ -127,29 +168,16 @@ async def _process_turn(
     if action not in ["ask_question", "request_nurse_finding", "complete_intake"]:
         action = "ask_question"
 
-    # A well-formed nurse finding request needs a type and an instruction —
-    # LM Studio's strict mode only enforces that nurse_finding_request is
-    # present as a key, not that it is populated (seen live: next_action
-    # "request_nurse_finding" with nurse_finding_request and next_question
-    # both null). Left unchecked, that turn falls all the way through with
-    # no bot text, no pending_finding, and nothing appended to the
-    # transcript — the patient sees a blank bubble and the session quietly
-    # stalls. Downgrade to a question immediately so the fallback logic
-    # below (which already knows how to produce a safe question) handles it.
     nurse_req = parsed.get("nurse_finding_request")
     if action == "request_nurse_finding" and not (
-        nurse_req and nurse_req.get("type") and nurse_req.get("instruction")
+        isinstance(nurse_req, dict) and nurse_req.get("type") and nurse_req.get("instruction")
     ):
         logger.warning(
             "Model chose request_nurse_finding without a valid nurse_finding_request; falling back to a question."
         )
         action = "ask_question"
 
-    # The deterministic backstop (config.max_intake_turns): the prompt asks
-    # the model to wrap up by a stated turn, but a 1.7B model does not
-    # reliably comply — verified by running the same conversation twice and
-    # getting a different turn count each time. Past this cap, the code
-    # ends the intake itself rather than leaving convergence to the model.
+    # The deterministic backstop (config.max_intake_turns)
     max_turns = get_settings().max_intake_turns
     if action != "complete_intake" and session.turn_count >= max_turns:
         logger.warning(
@@ -161,14 +189,9 @@ async def _process_turn(
 
     next_question_en = parsed.get("next_question")
 
-    # A local 1.7B model is asked to always fill this in (prompts.py guideline
-    # 4), but "asked to" is not "guaranteed to" — LM Studio's strict mode only
-    # enforces that the key is present, not that its value is non-empty. An
-    # ask_question turn with nothing to ask is a silently stalled
-    # conversation, so it falls back rather than sending an empty turn.
     if action == "ask_question" and not next_question_en:
         logger.warning("Model omitted next_question on ask_question; using fallback.")
-        next_question_en = SAFE_FALLBACK_QUESTION
+        next_question_en = get_dynamic_fallback(session, patient_text_en)
 
     bot_text_native = ""
     bot_audio_url = ""

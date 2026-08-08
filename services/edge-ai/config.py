@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     edge_llm_provider: str = "lmstudio"
 
     edge_llm_url: str = "http://localhost:1234/v1"
-    edge_llm_model: str = "qwen2.5-7b-instruct"
+    edge_llm_model: str = "medgemma"
     edge_llm_fallback: str = "groq"
-    edge_llm_timeout_ms: int = 20_000
+    edge_llm_timeout_ms: int = 5_000
 
     groq_api_key: str = ""
     groq_stt_model: str = "whisper-large-v3-turbo"

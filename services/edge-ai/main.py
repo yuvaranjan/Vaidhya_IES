@@ -206,8 +206,15 @@ async def session_start(req: SessionStartRequest):
     bot_text_native = await translate.to_native(greeting_en, req.language)
     tts = get_tts()
     audio_url = await tts.speak(bot_text_native, req.language)
-    
-    return {"bot_text_en": greeting_en, "bot_text_native": bot_text_native, "bot_audio_url": audio_url}
+    return {
+        "session_id": session.visit_id,
+        "greeting_text_en": greeting_en,
+        "greeting_text_native": bot_text_native,
+        "greeting_audio_url": audio_url,
+        "bot_text_en": greeting_en,
+        "bot_text_native": bot_text_native,
+        "bot_audio_url": audio_url,
+    }
 
 
 @app.post("/vitals", response_model=VitalsResponse)
