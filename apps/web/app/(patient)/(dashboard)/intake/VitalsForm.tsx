@@ -38,7 +38,7 @@ export function VitalsForm({
     const respRate = parseInt(formData.get("respiratory_rate") as string, 10);
 
     const readings: VitalReadingInput[] = [
-      { type: "temperature", value_numeric: temperature },
+      { type: "temperature", value_numeric: temperature, unit: "fahrenheit" },
       { type: "blood_pressure", value_text: bloodPressure },
       { type: "pulse", value_numeric: pulse },
       { type: "spo2", value_numeric: spo2 },

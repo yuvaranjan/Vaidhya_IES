@@ -20,6 +20,10 @@ export const topics = {
   patientToDoctor: (visitId: string) =>
     `vaidhya/consult/${visitId}/patient_to_doctor`,
   status: (visitId: string) => `vaidhya/consult/${visitId}/status`,
+  webrtcOffer: (visitId: string) => `vaidhya/consult/${visitId}/webrtc/offer`,
+  webrtcAnswer: (visitId: string) => `vaidhya/consult/${visitId}/webrtc/answer`,
+  webrtcIce: (visitId: string) => `vaidhya/consult/${visitId}/webrtc/ice`,
+  networkStatus: (visitId: string) => `vaidhya/consult/${visitId}/network`,
 } as const;
 
 /** Stable client ids — required for QoS 1 + clean_session=false to queue. */
@@ -60,6 +64,34 @@ export type ConsultStatus =
 
 export interface ConsultStatusMessage {
   state: ConsultStatus;
+}
+
+export type NetworkTier = "high" | "medium" | "low";
+
+export interface NetworkStatusMessage {
+  sender: "doctor" | "patient";
+  tier: NetworkTier;
+  rttMs: number;
+  packetLossPercent: number;
+  timestamp: string;
+}
+
+export interface WebRtcOfferMessage {
+  sender: "doctor" | "patient";
+  sdp: RTCSessionDescriptionInit;
+  timestamp: string;
+}
+
+export interface WebRtcAnswerMessage {
+  sender: "doctor" | "patient";
+  sdp: RTCSessionDescriptionInit;
+  timestamp: string;
+}
+
+export interface WebRtcIceMessage {
+  sender: "doctor" | "patient";
+  candidate: RTCIceCandidateInit;
+  timestamp: string;
 }
 
 export const QOS_AT_LEAST_ONCE = 1 as const;

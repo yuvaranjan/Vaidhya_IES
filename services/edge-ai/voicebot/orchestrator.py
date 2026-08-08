@@ -44,6 +44,28 @@ FALLBACK_QUESTIONS = [
 ]
 
 
+def format_vitals_context(session: Session) -> str:
+    """Return baseline/exam readings in plain language for every LLM turn."""
+    labels = {
+        "temperature": "Temperature",
+        "blood_pressure": "Blood pressure",
+        "pulse": "Heart rate",
+        "spo2": "SpO2",
+        "respiratory_rate": "Respiratory rate",
+    }
+    values = []
+    for reading in session.vitals:
+        name = labels.get(reading.get("type", ""), reading.get("type", "Reading"))
+        value = reading.get("value_text")
+        if value is None:
+            value = reading.get("value_numeric")
+        if reading.get("type") == "temperature" and value is not None:
+            values.append(f"{name}: {value} C (canonical edge value)")
+        else:
+            values.append(f"{name}: {value}")
+    return "; ".join(values) if values else "No baseline vitals recorded yet."
+
+
 def get_dynamic_fallback(session: Session, patient_text_en: str) -> str:
     text_lower = patient_text_en.lower()
     asked_questions = [t.text_en for t in session.turns if t.speaker == "bot"]
@@ -137,6 +159,9 @@ async def _process_turn(
     user_prompt = (
         f"Session Phase: {session.phase}\n"
         f"Questions asked so far (including this one): {session.turn_count}\n"
+        "Baseline clinical readings captured before the conversation (use these "
+        "to guide questions; do not ask the patient to repeat them): "
+        f"{format_vitals_context(session)}\n"
     )
 
     if session.branch_tags:

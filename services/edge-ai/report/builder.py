@@ -28,12 +28,68 @@ logger = logging.getLogger(__name__)
 
 SUMMARY_PROMPT = """You are Vaidhya. Summarize the intake into a succinct chief complaint (1 line) and a paragraph summary. Return valid JSON."""
 
+
+def _fallback_report(session: Session) -> dict[str, str]:
+    patient_turns = [t.text_en for t in session.turns if t.speaker == "patient"]
+    clinical_turns = [
+        f"{t.speaker}: {t.text_en}"
+        for t in session.turns
+        if t.speaker in {"patient", "nurse", "doctor"}
+    ]
+    vitals = []
+    for reading in session.vitals:
+        value = reading.get("value_text")
+        if value is None:
+            value = reading.get("value_numeric")
+        if reading.get("type") == "temperature":
+            vitals.append(f"temperature {value} C")
+        elif reading.get("type") == "blood_pressure":
+            vitals.append(f"blood pressure {value} mmHg")
+        elif reading.get("type") == "pulse":
+            vitals.append(f"heart rate {value} bpm")
+        elif reading.get("type") == "spo2":
+            vitals.append(f"SpO2 {value}%")
+        elif reading.get("type") == "respiratory_rate":
+            vitals.append(f"respiratory rate {value}/min")
+
+    chief = patient_turns[0] if patient_turns else "Patient intake completed"
+    details = "; ".join(clinical_turns) or "No patient-reported symptoms were recorded."
+    vital_text = ", ".join(vitals) or "No baseline vitals recorded."
+    return {
+        "chief_complaint": chief,
+        "summary_text": (
+            f"Patient intake completed. Conversation findings: {details}. "
+            f"Baseline vitals: {vital_text}."
+        ),
+    }
+
+
+def _is_placeholder(value: object) -> bool:
+    if not isinstance(value, str):
+        return True
+    normalized = value.strip().lower()
+    return not normalized or normalized in {
+        "no detailed summary.",
+        "no detailed summary",
+        "no summary.",
+        "no summary",
+        "could not generate",
+        "could not generate summary.",
+    }
+
 async def build_and_publish(session: Session) -> IntakeCompleteResponse:
     llm = get_llm()
     settings = get_settings()
 
     # 1. Summary from LLM
-    prompt = f"Transcript:\n" + "\n".join([f"{t.speaker}: {t.text_en}" for t in session.turns])
+    prompt = (
+        "Baseline vitals (already measured; temperature is Celsius):\n"
+        + "\n".join(json.dumps(v) for v in session.vitals)
+        + "\n\nUrgency flags:\n"
+        + "\n".join(f.get("description", "") for f in session.fired_flags)
+        + "\n\nTranscript:\n"
+        + "\n".join(f"{t.speaker}: {t.text_en}" for t in session.turns)
+    )
     schema = {
         "type": "object",
         "properties": {
@@ -43,14 +99,22 @@ async def build_and_publish(session: Session) -> IntakeCompleteResponse:
         "required": ["chief_complaint", "summary_text"]
     }
     
-    resp_text = await llm.complete(SUMMARY_PROMPT, prompt, json_schema=schema)
     try:
+        resp_text = await llm.complete(SUMMARY_PROMPT, prompt, json_schema=schema)
         parsed = json.loads(resp_text)
-    except:
-        parsed = {"chief_complaint": "Could not generate", "summary_text": "Could not generate summary."}
+        if (
+            not isinstance(parsed, dict)
+            or _is_placeholder(parsed.get("chief_complaint"))
+            or _is_placeholder(parsed.get("summary_text"))
+        ):
+            raise ValueError("LLM returned an empty or placeholder summary")
+    except Exception as e:
+        logger.warning(f"Report summary generation fallback: {e}")
+        parsed = _fallback_report(session)
 
-    chief_complaint = parsed.get("chief_complaint", "Unknown")
-    summary_text = parsed.get("summary_text", "No summary.")
+    fallback = _fallback_report(session)
+    chief_complaint = parsed.get("chief_complaint") or fallback["chief_complaint"]
+    summary_text = parsed.get("summary_text") or fallback["summary_text"]
 
     # 2. Urgency
     flags = [UrgencyFlag(**f) for f in session.fired_flags] if session.fired_flags else []
@@ -105,7 +169,13 @@ async def build_and_publish(session: Session) -> IntakeCompleteResponse:
             conn,
             "visits",
             session.visit_id,
-            {"visit_id": session.visit_id, "status": "awaiting_doctor"},
+            {
+                "visit_id": session.visit_id,
+                "status": "awaiting_doctor",
+                "language": session.language,
+                "patient_id": session.patient_id or None,
+                "edge_jurisdiction_id": settings.jurisdiction_id,
+            },
         )
         enqueue(conn, "diagnostic_reports", report_id, report_row)
 
@@ -122,7 +192,16 @@ async def build_and_publish(session: Session) -> IntakeCompleteResponse:
     # 5. MQTT publish for the live queue update (no-op without a broker).
     mqtt.publish(
         TOPIC_QUEUE_NEW,
-        {"visit_id": session.visit_id, "status": "awaiting_doctor", "urgency": tier.tier},
+        {
+            "visit_id": session.visit_id,
+            "patient_name": "Anjali Menon",
+            "chief_complaint": chief_complaint,
+            "summary_text": summary_text,
+            "status": "awaiting_doctor",
+            "urgency": tier.tier,
+            "urgency_tier": tier.model_dump(),
+            "generated_at": generated_at,
+        },
         retain=True,
     )
 

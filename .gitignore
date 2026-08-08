@@ -26,7 +26,7 @@ env/
 .ruff_cache/
 
 # --- edge runtime artifacts ---
-services/edge-ai/edge.db
+services/edge-ai/edge.db*
 services/edge-ai/audio_tmp/
 *.sqlite
 *.sqlite3

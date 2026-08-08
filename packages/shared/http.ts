@@ -40,6 +40,8 @@ export interface VitalReadingInput {
   value_numeric?: number;
   /** Used for non-numeric readings, e.g. blood_pressure "120/80". */
   value_text?: string;
+  /** Temperature input unit; edge storage and rules use Celsius. */
+  unit?: "celsius" | "fahrenheit";
 }
 
 export interface UrgencyFlag {

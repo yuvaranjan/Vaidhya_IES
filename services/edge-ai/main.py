@@ -268,6 +268,9 @@ async def vitals(req: VitalsRequest):
         session.phase = "pass_one"
         session.pending_finding = None
         session.doctor_question = None
+        session.vitals = []
+        session.fired_flags = []
+        session.branch_tags = []
 
     fired = record_vitals(session, req)
 
@@ -376,7 +379,12 @@ async def intake_complete(req: IntakeCompleteRequest):
     try:
         session = store.get(req.visit_id)
         if not session:
-            return JSONResponse(status_code=404, content={"error": "session not found"})
+            # `store` is imported at module scope. Importing it here would make
+            # Python treat it as a local variable throughout this function,
+            # causing the lookup above to fail before the fallback is reached.
+            from voicebot.session import Session
+            session = Session(visit_id=req.visit_id, patient_id="", language="en")
+            store.put(session)
             
         from report.builder import build_and_publish
         return await build_and_publish(session)

@@ -74,15 +74,26 @@ def record_vitals(session: Session, req: VitalsRequest) -> list[UrgencyFlag]:
     settings = get_settings()
     now = now_iso()
 
-    readings = [
-        {
-            "reading_id": uuid.uuid4().hex,
-            "type": r.type,
-            "value_numeric": r.value_numeric,
-            "value_text": r.value_text,
-        }
-        for r in req.readings
-    ]
+    readings = []
+    for r in req.readings:
+        value_numeric = r.value_numeric
+        unit = r.unit
+        # The web forms collect Fahrenheit. Keep one canonical unit in the
+        # edge database and rules engine so 98.6 F is not treated as 98.6 C.
+        if r.type == "temperature" and value_numeric is not None:
+            if unit == "fahrenheit" or (unit is None and value_numeric > 45):
+                value_numeric = round((value_numeric - 32) * 5 / 9, 1)
+            unit = "celsius"
+
+        readings.append(
+            {
+                "reading_id": uuid.uuid4().hex,
+                "type": r.type,
+                "value_numeric": value_numeric,
+                "value_text": r.value_text,
+                "unit": unit,
+            }
+        )
 
     pending = session.pending_finding
     if req.phase == "on_demand" and pending is not None:

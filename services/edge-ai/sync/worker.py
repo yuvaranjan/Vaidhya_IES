@@ -162,8 +162,14 @@ async def flush_outbox() -> dict:
             # superseded ones, still gets marked synced below.
             by_pk: dict[str, dict] = {}
             for r in batch:
-                by_pk[r["entity_id"]] = json.loads(r["payload"])
-            payloads = list(by_pk.values())
+                pk = r["entity_id"]
+                data = json.loads(r["payload"])
+                if pk in by_pk:
+                    by_pk[pk].update(data)
+                else:
+                    by_pk[pk] = data
+
+            payloads = [{k: v for k, v in p.items() if v is not None} for p in by_pk.values()]
 
             if await _push(client, entity, payloads):
                 synced_ids.extend(r["id"] for r in batch)

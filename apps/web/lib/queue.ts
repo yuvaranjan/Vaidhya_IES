@@ -108,11 +108,28 @@ export async function claimVisit(
 ): Promise<Visit | null> {
   if (!db) return claimMockCAS(visitId, doctorId);
 
+  // Check if visit is already claimed by this exact doctor
+  const { data: existingData } = await db
+    .from("visits")
+    .select(SELECT)
+    .eq("visit_id", visitId)
+    .maybeSingle();
+
+  if (existingData) {
+    const existingVisit = toVisit(existingData as unknown as VisitRow);
+    if (
+      existingVisit.claimedByDoctorId === doctorId ||
+      (existingVisit.status === "in_consult" && existingVisit.claimedByDoctorId === doctorId)
+    ) {
+      return existingVisit;
+    }
+  }
+
   const { data, error } = await db
     .from("visits")
     .update({ status: "in_consult", claimed_by_doctor_id: doctorId })
     .eq("visit_id", visitId)
-    .eq("status", "awaiting_doctor")
+    .or(`status.eq.awaiting_doctor,claimed_by_doctor_id.is.null,claimed_by_doctor_id.eq.${doctorId}`)
     .select(SELECT);
 
   if (error) {

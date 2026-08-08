@@ -4,14 +4,14 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T03:25:19Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T06:31:33Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
 | **T1** | Yuvaranjan | 🔵 in progress | Dedicated /voicebot patient route ships with a real record/playback client wired to /voice/turn. Not yet verified live with an actual recorded clip — that's still the next step. ⚠️ _2h behind_ | `agents/status/T1.md` |
-| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _7h behind_ | `agents/status/T2.md` |
+| **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _8h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
 
@@ -111,17 +111,18 @@ Last self-reported update: 2026-08-08T06:40:00Z
 
 **Done**
 
+- WebRTC Teleconsultation Hub & Doctor Portal Layout Restructuring: Built `lib/webrtc.ts` (RTCPeerConnection, STUN, bandwidth/RTT telemetry) and `WebRtcConsultHub.tsx` with WebRTC video/audio streams, camera/mic toggles, and automatic network degradation (High -> Medium audio-only -> Low MQTT chat). Restructured `ConsultClient.tsx` into a 3-column workspace with Patient Details in left sidebar, WebRTC stream & MQTT chat in center, and AI Diagnostic Synthesis in right sidebar.
 - Next.js 15.5 + Tailwind v4 app builds clean (`npm run build` → 12 routes, `tsc --noEmit` exits 0).
-- Theme tokens frozen at the top of `app/globals.css` as Tailwind v4 `@theme` — `bg-bg`, `bg-surface`, `border-border`, `bg-primary-500`, `text-text`, `text-muted`, `text-warn`, `text-danger`. Rules are in a comment above them.
+- Theme tokens frozen at the top of `app/globals.css` as Tailwind v4 `@theme` — `bg-bg`, `bg-[#F3F8F8]`, `border-border`, `bg-primary-500`, `text-text`, `text-muted`, `text-warn`, `text-danger`. Rules are in a comment above them.
 - `lib/mockAi.ts` — five-turn scripted Malayalam conversation, nurse-finding pause on turn 3, urgency-flagged summary, in the exact contract shapes.
 - `lib/edgeApi.ts` — the single switch point. `NEXT_PUBLIC_USE_MOCK_AI` flips the whole app between mock and real with no other change.
-- `lib/mqtt.ts`, `lib/db.ts`, `lib/auth.ts` wired but unused so far.
-- Every screen in the build plan has a route and a placeholder naming its task.
+- `lib/mqtt.ts`, `lib/db.ts`, `lib/auth.ts` wired.
+- Every screen in the build plan has a route.
 - Task 3 (Patient login) complete: UI in `app/(patient)/login/page.tsx` wired to `lib/auth.ts` iron-session with a hardcoded mock `patientId` and `visitId`.
 - Task 5 (Vitals Dashboard) complete: UI in `app/(patient)/intake/VitalsForm.tsx` collects five vital signs and passes them to `edgeApi.vitals()` before routing to `/consult`.
 - Tasks 6 & 7 (AI Assistant) complete: `AssistantClient.tsx` handles MediaRecorder capture, dual-language transcripts, background 2s polling for `pending_finding`, inline nurse UI, and final intake summarization.
 - Task 8 (Doctor Queue) complete: Simple Doctor Login (Task 4) added to enable queue testing. Built `QueueClient.tsx` using `lib/mockQueue.ts` to simulate atomic CAS claim and display 409 errors for race conditions. Attached MQTT live listener.
-- Task 9 (Doctor Consult) complete: `ConsultClient.tsx` displays intake report and supports real-time MQTT chat (`doctor_to_patient` / `patient_to_doctor`) using `createDedupe` for exactly-once processing.
+- Task 9 (Doctor Consult) complete: `ConsultClient.tsx` displays intake report and supports real-time WebRTC audio/video + MQTT chat (`doctor_to_patient` / `patient_to_doctor`) using `createDedupe` for exactly-once processing.
 - Task 10 (Prescription Form) complete: Built `PrescriptionClient.tsx` for dynamic medication entry, which marks the visit as `completed` and redirects the doctor back to the queue.
 
 **In progress**
@@ -132,7 +133,7 @@ Last self-reported update: 2026-08-08T06:40:00Z
 
 - Awaiting Supabase database provisioning (T4/Unassigned) to disable `USE_MOCK_AI`.
 
-Last self-reported update: 2026-08-08T01:30:00Z
+Last self-reported update: 2026-08-08T11:46:00Z
 
 ### T3 · Antigravity · `apps/web/app/(patient)/prescription, apps/web/app/(patient)/history, apps/web/app/(pharmacy)`
 
@@ -195,6 +196,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+b699404 · 08 Aug 08:55 · fix: resolve React key prop warning and improve patient name rendering in doctor queue
 9e1cfed · 08 Aug 08:22 · fix: add root endpoint / and stabilize session handling
 eb093b4 · 08 Aug 08:13 · fix index
 51e11ce · 08 Aug 08:11 · chore: save current working state
@@ -202,7 +204,6 @@ eb093b4 · 08 Aug 08:13 · fix index
 0eb16cb · 08 Aug 08:13 · fix: restore sessions from SQLite and auto-initialize missing sessions on intake complete
 d99596e · 08 Aug 07:54 · fix: add root endpoint / and resolve MQTT client_id collision disconnect loop
 fa0c7f8 · 08 Aug 07:33 · deploy: add Dockerfile and Render blueprint for Python Edge AI backend
-265ad8d · 08 Aug 07:29 · config: add vercel.json monorepo configuration
 ```
 
 ---
