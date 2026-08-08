@@ -140,7 +140,35 @@ class SessionStore:
                 conn.executescript(schema.read_text(encoding="utf-8"))
 
     def get(self, visit_id: str) -> Session | None:
-        return self._sessions.get(visit_id)
+        session = self._sessions.get(visit_id)
+        if session:
+            return session
+        try:
+            with sqlite3.connect(self._db_path) as conn:
+                cur = conn.execute("select payload from sessions where visit_id = ?", (visit_id,))
+                row = cur.fetchone()
+                if row and row[0]:
+                    d = json.loads(row[0])
+                    turns = [Turn(**t) for t in d.get("turns", [])]
+                    pf_dict = d.get("pending_finding")
+                    pf = Finding(**pf_dict) if pf_dict else None
+                    session = Session(
+                        visit_id=d["visit_id"],
+                        patient_id=d.get("patient_id", ""),
+                        language=d.get("language", "en"),
+                        phase=d.get("phase", "pass_one"),
+                        turns=turns,
+                        vitals=d.get("vitals", []),
+                        pending_finding=pf,
+                        fired_flags=d.get("fired_flags", []),
+                        branch_tags=d.get("branch_tags", []),
+                        doctor_question=d.get("doctor_question"),
+                    )
+                    self._sessions[visit_id] = session
+                    return session
+        except Exception:
+            pass
+        return None
 
     def put(self, session: Session) -> None:
         self._sessions[session.visit_id] = session

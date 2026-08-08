@@ -262,7 +262,9 @@ async def vitals(req: VitalsRequest):
 async def voice_turn(visit_id: str = Form(...), audio: UploadFile = File(...)):
     session = store.get(visit_id)
     if not session:
-        return JSONResponse(status_code=404, content={"error": "session not found"})
+        from voicebot.session import Session
+        session = Session(visit_id=visit_id, patient_id="demo_patient", language="en")
+        store.put(session)
         
     resolve_pending(session)
     
@@ -270,8 +272,6 @@ async def voice_turn(visit_id: str = Form(...), audio: UploadFile = File(...)):
     audio_bytes = await audio.read()
     response = await run_turn(session, audio_bytes)
 
-    # If the doctor was waiting on this turn, their answer goes back over MQTT.
-    # answer_doctor() clears the question, so the patient is not re-asked it.
     from consult import answer_doctor
 
     answer_doctor(session, response.transcript_en)
@@ -285,7 +285,9 @@ async def voice_turn_text(req: VoiceTurnTextRequest):
     """The typed-answer fallback — same turn loop as /voice/turn, minus STT."""
     session = store.get(req.visit_id)
     if not session:
-        return JSONResponse(status_code=404, content={"error": "session not found"})
+        from voicebot.session import Session
+        session = Session(visit_id=req.visit_id, patient_id="demo_patient", language="en")
+        store.put(session)
 
     resolve_pending(session)
 
@@ -327,7 +329,9 @@ async def session_state(visit_id: str):
 async def intake_complete(req: IntakeCompleteRequest):
     session = store.get(req.visit_id)
     if not session:
-        return JSONResponse(status_code=404, content={"error": "session not found"})
+        from voicebot.session import Session
+        session = Session(visit_id=req.visit_id, patient_id="demo_patient", language="en")
+        store.put(session)
         
     from report.builder import build_and_publish
     return await build_and_publish(session)
@@ -340,7 +344,9 @@ async def consult_ask(req: ConsultAskRequest):
     the venue and both nodes end up on one laptop."""
     session = store.get(req.visit_id)
     if not session:
-        return JSONResponse(status_code=404, content={"error": "session not found"})
+        from voicebot.session import Session
+        session = Session(visit_id=req.visit_id, patient_id="demo_patient", language="en")
+        store.put(session)
 
     from consult import ask_patient
 
