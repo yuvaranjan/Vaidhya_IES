@@ -71,10 +71,14 @@ function toVisit(row: VisitRow): Visit {
 export async function getQueue(): Promise<Visit[]> {
   if (!db) return getMockQueue();
 
+  // Filter out visits older than 24 hours (expiry)
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
   const { data, error } = await db
     .from("visits")
     .select(SELECT)
     .in("status", ["awaiting_doctor", "in_consult"])
+    .gte("created_at", yesterday)
     .order("created_at", { ascending: false });
 
   if (error) {

@@ -75,10 +75,9 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
           }
 
           return [
-            ...prev,
             {
               visitId: vId,
-              patientName: pName || "Anjali Menon (Patient)",
+              patientName: pName || "Unknown Patient",
               chiefComplaint: complaint || "Intake completed",
               summaryText: summary || "Incoming AI Triage Summary...",
               urgency: urgencyVal || "routine",
@@ -86,6 +85,7 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
               claimedByDoctorId: null,
               createdAt: Date.now(),
             },
+            ...prev,
           ];
         });
       }
@@ -184,7 +184,7 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
             <div key={visit.visitId ? `${visit.visitId}-${idx}` : `visit-item-${idx}`} className="bg-card border border-border p-6 rounded-xl shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-card-hover transition-all">
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <h3 className="font-bold text-lg text-foreground">{visit.patientName || "Anjali Menon (Patient)"}</h3>
+                  <h3 className="font-bold text-lg text-foreground">{visit.patientName || "Unknown Patient"}</h3>
                   <span className={`px-2.5 py-0.5 text-[10px] uppercase tracking-[0.14em] font-extrabold rounded-full border ${
                     visit.urgency === "urgent" ? "bg-destructive/10 text-destructive border-destructive/20" : 
                     visit.urgency === "elevated" ? "bg-[#EEF3FB] text-[#315A94] border-[#D1E0F5]" : 
