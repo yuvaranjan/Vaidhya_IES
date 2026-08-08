@@ -4,13 +4,13 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T07:00:41Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T07:33:15Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Verified live in a browser that the doctor-queue claim bug ("Already claimed by another doctor" on a fresh or own-claimed visit) is fixed by T2's merged CAS change, and fixed a real MQTT disconnect loop in QueueClient.tsx/ConsultClient.tsx. | `agents/status/T1.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Fixed the three reported demo blockers — empty diagnostic summary, summary not reaching the doctor portal over MQTT, and the patient never answering the doctor's video call. All three verified live; the running Python backend must be restarted to pick them up. | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
@@ -50,6 +50,7 @@ A step counts only if it can be performed live, right now, in front of a judge.
 
 - **T1** — **Everyone: read [agents/integration-log.md](../integration-log.md).** This pass deliberately crossed lane boundaries at the owner's direction, and that file is the full per-lane record — including two things that will surprise T2 (the doctor login password is `vaidhya123`, not `doctor123`; the doctor screens now read `lib/queue.ts`, not `lib/mockQueue.ts`) and a bug that made T3's Supabase path silently serve mock rows. The bullets below are the short version.
 - **T1** — **Everyone:** the edge service no longer returns `501` for anything. `/vitals` and `/consult/ask` are implemented; `/sync/status` and `/sync/flush` are new.
+- **T1** — **T2:** two behaviour changes in your doctor screens, both at the user's direction. `QueueClient.tsx` now *merges* a `vaidhya/queue/new` payload into a visit already on the board instead of ignoring it — that message is what carries the finished AI summary, and the old duplicate-id guard threw it away every time. `ConsultClient.tsx` now subscribes to the same retained topic and live-updates its summary/chief complaint, which were previously server props frozen at claim time. Also mounted your `WebRtcConsultHub` on the patient's `/voicebot` screen (`role="patient"`) — it was only on `/consult`, so during intake there was no peer to answer the doctor's offer.
 - **T1** — **T2:** at the user's direction I touched two of your files — `app/(doctor)/doctor/(dashboard)/queue/QueueClient.tsx` and `.../consult/[visitId]/ConsultClient.tsx` — to remove a `disconnectMqtt()` call from each effect's cleanup that was killing the shared MQTT client on every unmount (dev double-mount, and every queue↔consult navigation). Only those two lines (+ the now-unused import) changed; no logic beyond the cleanup function was touched. Worth double-checking `WebRtcConsultHub.tsx` doesn't have the same pattern if you add more `getMqttClient` consumers.
 - **T1** — **T2:** the contract in `packages/shared/http.ts` is mirrored exactly in `services/edge-ai/contracts.py`. One additive change since the freeze — `SessionState.doctor_question`. Poll it and play `audio_url` to voice the doctor's question to the patient; the patient's next `/voice/turn` publishes the answer back.
 - **T1** — **T2:** the nurse answers a pending finding through `POST /vitals` with `phase: "on_demand"` — there is no separate endpoint. It now returns `fired_flags`, which is what the "fired rule: SpO2 < 92" badge should render.
@@ -101,16 +102,21 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - **Camera-based vision analysis on `/voicebot`.** Patient can capture a photo mid-consult; it's sent to a local LM Studio vision model, the description is appended to the transcript and shown under "Diagnostic Summary" alongside `intakeResult.summary_text`. Pulled T2's `origin/main` (3 commits: WebRTC teleconsultation hub, queue-key fix, the diagnostic-summary fix) into the same branch — `VoicebotClient.tsx` had non-overlapping edits so it merged clean, no hand-resolution needed. T2's fix removed the `!intakeResult ||` clause that made `finalizeIntake()` fire on the very first turn instead of only on real completion; that clause was upstream of and unrelated to the vision feature. Also untracked `services/edge-ai/edge.db-shm` / `edge.db-wal` (binary SQLite runtime files) to match T2's own `.gitignore` broadening — they were the only real merge conflicts, both non-source. Verified: merged `npm run build` and `tsc --noEmit` both clean, Python files `py_compile` clean. **Not** yet exercised live — no photo captured through a real camera against a running LM Studio, no browser click-through of the merged diagnostic summary.
 - **Verified doctor-queue claim fix, live.** The user reported "Already claimed by another doctor" on clicking a patient in the doctor portal. Root cause was already fixed by T2's merged commit `3a88c06` ("fix doctor queue claiming") — before it, `claimVisit` (`apps/web/lib/queue.ts`) did a strict `.eq("status", "awaiting_doctor")` CAS, so re-clicking a visit your own doctor session had already claimed (status now `in_consult`) failed the CAS and returned the same 409 as a real conflict. The fix broadens the CAS to `status.eq.awaiting_doctor OR claimed_by_doctor_id.is.null OR claimed_by_doctor_id.eq.<you>` and short-circuits on an existing own-claim. Verified against live Supabase: claimed a fresh `awaiting_doctor` visit, then re-clicked the same now-`in_consult` visit — both succeeded, no false 409.
 - **Fixed a real MQTT disconnect loop** (crossed into T2's lane at the user's direction — see note below). `QueueClient.tsx` and `ConsultClient.tsx` both called `disconnectMqtt()` — which force-closes the shared, tab-wide singleton client from `lib/mqtt.ts` — in their effect cleanup. Every unmount tore the connection down: React Strict Mode's dev double-invoke (mount → cleanup → mount) closed the socket mid-handshake, and every queue↔consult navigation did the same, producing a repeating "WebSocket is closed before the connection is established" / "[mqtt] client disconnecting" loop in the console. Removed the `disconnectMqtt()` call from both cleanups (kept `unsubscribe()`), matching the "connect once per tab and reuse" comment already on `getMqttClient`. Verified live: navigated queue → consult → queue repeatedly, zero `[mqtt]` errors afterward (previously 4+ per navigation).
+- **Fixed the empty "Diagnostic Summary" (`No summary.`).** Two independent causes, both real: 1. `providers/llm.py` sent `response_format: {"type": "json_object"}` to LM Studio, which rejects it outright (`'response_format.type' must be 'json_schema' or 'text'`). *Every* structured local call 400'd and fell through to Groq — the offline claim was quietly never exercised. Now sends a real `json_schema`, which LM Studio accepts and which also pins the key names. Verified: medgemma-4b-it returns correct keys in ~6s. 2. `SUMMARY_PROMPT` never told the model which JSON keys to use — the schema was only ever used as a boolean "turn on JSON mode" flag, never sent. Groq answered with `{"chief_complaint": ..., "summary": ...}`, code read `summary_text`, got `None`, and the report was written with a placeholder. Prompt now states both key names and forbids placeholder answers, and `_first_usable` maps the aliases models actually emit (`summary`, `assessment`, `paragraph_summary`, …) back onto the contract. Verified end to end on a clean backend: a real 4-sentence clinical summary, correct `37.0°C`, stored clean in SQLite (single `0xb0`, no mojibake).
+- **Fixed the summary not reaching the doctor portal.** The edge service was publishing it correctly all along — confirmed by subscribing to `vaidhya/queue/new` and reading the retained payload. Both bugs were on the web side: `QueueClient.tsx` did `if (prev.some(v => v.visitId === vId)) return prev`, so the retained message carrying the finished summary was *discarded* for any visit already on the board (i.e. always — the server render lists the visit as soon as intake starts). It now merges, without letting the payload's own placeholder defaults overwrite a real value. `ConsultClient.tsx` never subscribed at all; its summary was a server prop frozen at claim time. It now subscribes to the retained topic and live-updates. Verified live: consult page went from `No summary.` to the MQTT-delivered text without a reload.
+- **Fixed the patient never answering the doctor's video call.** `WebRtcConsultHub` was mounted on the doctor's consult screen and on the patient's `/consult` screen, but *not* on `/voicebot` — which is the screen the patient is actually on during intake. There was no peer subscribed to `webrtc/offer`, so "Start Video Consult" published an offer nobody answered. Mounted the hub in the `/voicebot` right-hand column, rendered as soon as the session starts (not gated on `intakeResult`, since the doctor can dial in mid-intake). Verified live: the patient screen now shows "Waiting for Doctor to Connect Video…" with both video elements present.
+- **Fahrenheit vitals were being read as Celsius.** Not separately reported, but it was corrupting the summary and firing a false flag — 98.6 °F was stored raw and fired `high fever (98.6°C)`. The conversion in `vitals_store.py` came in with T2's merge and works; the running backend simply predates it. On a clean backend 98.6 °F → 37.0 °C and no flag fires.
 
 **In progress**
 
+- **The running Python backend on :8000 is serving stale code** and must be restarted before any of the above is visible. Proven, not assumed: posting 98.6 °F to the live service still stored `98.6` and fired `high fever (98.6°C)`, while the merged `vitals_store.py` on disk converts it. `--reload` did not pick the merge up. Everything above was verified against a clean instance on :8010, which has since been stopped.
 - Nothing committed mid-flight. The `/voicebot` route above is code-complete but its record → STT → LLM → TTS round trip hasn't been exercised live in this session — see Next. Same caveat for the Specialist AI fix and the new vision feature: build/API-verified, not yet clicked through the browser.
 
 **Next**
 
 - _nothing planned — this lane needs a plan_
 
-Last self-reported update: 2026-08-08T12:20:00Z
+Last self-reported update: 2026-08-08T13:05:00Z
 
 ### T2 · Yadav · `apps/web`
 
@@ -201,6 +207,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+d085509 · 08 Aug 12:30 · fix(web): stop MQTT disconnect loop in queue/consult clients
 b6aee68 · 08 Aug 12:09 · docs(t1): record vision-analysis + diagnostic-summary merge in status
 330b681 · 08 Aug 12:08 · chore: regenerate PROGRESS.md after merging T2's diagnostic-summary fix
 a424466 · 08 Aug 12:06 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
@@ -208,7 +215,6 @@ b7fd2a0 · 08 Aug 12:06 · feat(voicebot): add camera-based vision analysis to i
 3a88c06 · 08 Aug 12:01 · feat: Add WebRTC teleconsultation hub and fix doctor queue claiming
 b699404 · 08 Aug 08:55 · fix: resolve React key prop warning and improve patient name rendering in doctor queue
 9e1cfed · 08 Aug 08:22 · fix: add root endpoint / and stabilize session handling
-eb093b4 · 08 Aug 08:13 · fix index
 ```
 
 ---

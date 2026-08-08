@@ -30,6 +30,33 @@ export function ConsultClient({
   const [inputValue, setInputValue] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // The page is server-rendered at claim time. If intake finishes (or the
+  // summary is regenerated) while the doctor is already on this screen, the
+  // prop is stale forever without this. `vaidhya/queue/new` is retained, so a
+  // late subscribe still gets the last summary for the visit.
+  const [summaryText, setSummaryText] = useState(visit.summaryText);
+  const [chiefComplaint, setChiefComplaint] = useState(visit.chiefComplaint);
+
+  useEffect(() => {
+    setSummaryText(visit.summaryText);
+    setChiefComplaint(visit.chiefComplaint);
+  }, [visit.summaryText, visit.chiefComplaint]);
+
+  useEffect(() => {
+    const client = getMqttClient(doctorId);
+    if (!client) return;
+
+    return subscribeJson<{
+      visit_id?: string;
+      chief_complaint?: string;
+      summary_text?: string;
+    }>(client, "vaidhya/queue/new", (payload) => {
+      if (payload.visit_id !== visit.visitId) return;
+      if (payload.summary_text) setSummaryText(payload.summary_text);
+      if (payload.chief_complaint) setChiefComplaint(payload.chief_complaint);
+    });
+  }, [doctorId, visit.visitId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -133,7 +160,7 @@ export function ConsultClient({
         <div className="space-y-1.5">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Chief Complaint</p>
           <p className="text-xs font-semibold text-foreground bg-background p-3.5 rounded-xl border border-border leading-relaxed">
-            {visit.chiefComplaint}
+            {chiefComplaint}
           </p>
         </div>
 
@@ -241,7 +268,7 @@ export function ConsultClient({
             <Sparkles className="w-3.5 h-3.5 text-accent" /> AI Diagnostic Summary
           </p>
           <div className="bg-background p-4 rounded-xl border border-border text-xs text-foreground font-medium leading-relaxed shadow-xs">
-            {visit.summaryText}
+            {summaryText || "Waiting for the AI intake summary…"}
           </div>
         </div>
 

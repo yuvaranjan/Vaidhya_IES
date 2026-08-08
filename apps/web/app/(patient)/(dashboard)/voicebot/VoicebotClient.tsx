@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { edgeApi, USE_MOCK_AI } from "@/lib/edgeApi";
+import { WebRtcConsultHub } from "@/components/WebRtcConsultHub";
 import type { Language, IntakeCompleteResponse, PendingFinding, ModelsResponse, HealthResponse, VitalReadingInput } from "@vaidhya/shared";
 import { 
   Sparkles, 
@@ -1163,10 +1164,18 @@ export function VoicebotClient({
 
             </div>
 
-            {/* Right Panel: Diagnostic Summary Report */}
+            {/* Right Panel: live tele-consult + diagnostic summary */}
+            <div className="lg:col-span-5 space-y-5 h-fit">
+
+              {/* The doctor can dial in at any point in the visit, not only
+                  after intake finishes — so this mounts as soon as the session
+                  starts. Without it on this screen the patient had no WebRTC
+                  peer at all and the doctor's offer went unanswered. */}
+              <WebRtcConsultHub visitId={visitId} role="patient" userId={patientId} />
+
             {intakeResult && (
-              <div className="lg:col-span-5 bg-card rounded-xl p-6 shadow-soft border border-border space-y-5 h-fit">
-                
+              <div className="bg-card rounded-xl p-6 shadow-soft border border-border space-y-5">
+
                 <div className="flex items-center gap-3 border-b border-border pb-4">
                   <div className="w-10 h-10 rounded-full bg-[#E5F5F3] text-[#14736A] flex items-center justify-center font-bold">
                     <CheckCircle2 className="w-6 h-6" />
@@ -1240,6 +1249,8 @@ export function VoicebotClient({
 
               </div>
             )}
+
+            </div>
 
           </div>
         </div>

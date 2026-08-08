@@ -43,22 +43,45 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
       client,
       "vaidhya/queue/new",
       (payload) => {
+        // Kept undefined when absent so a merge below can tell "the broker had
+        // nothing to say about this field" apart from "the broker sent a
+        // placeholder", and never downgrades a real summary to either.
         const vId = payload.visit_id || payload.visitId || `visit_${Date.now()}`;
-        const pName = payload.patient_name || payload.patientName || "Anjali Menon (Patient)";
-        const complaint = payload.chief_complaint || payload.chiefComplaint || "Intake completed";
-        const summary = payload.summary_text || payload.summaryText || "Incoming AI Triage Summary...";
-        const urgencyVal = payload.urgency || "routine";
+        const pName = payload.patient_name || payload.patientName;
+        const complaint = payload.chief_complaint || payload.chiefComplaint;
+        const summary = payload.summary_text || payload.summaryText;
+        const urgencyVal = payload.urgency;
 
         setQueue((prev) => {
-          if (prev.some((v) => v.visitId === vId)) return prev;
+          const existing = prev.findIndex((v) => v.visitId === vId);
+
+          // A visit already on the board is the common case, not the rare one:
+          // the server render lists it as soon as intake starts, and this
+          // retained message is what carries the finished AI summary. Bailing
+          // out on a duplicate id meant the doctor's card kept the placeholder
+          // forever. Merge instead, and never overwrite a real value with the
+          // payload's own placeholder defaults.
+          if (existing !== -1) {
+            const merged = [...prev];
+            const row = merged[existing];
+            merged[existing] = {
+              ...row,
+              patientName: pName || row.patientName,
+              chiefComplaint: complaint || row.chiefComplaint,
+              summaryText: summary || row.summaryText,
+              urgency: urgencyVal || row.urgency,
+            };
+            return merged;
+          }
+
           return [
             ...prev,
             {
               visitId: vId,
-              patientName: pName,
-              chiefComplaint: complaint,
-              summaryText: summary,
-              urgency: urgencyVal,
+              patientName: pName || "Anjali Menon (Patient)",
+              chiefComplaint: complaint || "Intake completed",
+              summaryText: summary || "Incoming AI Triage Summary...",
+              urgency: urgencyVal || "routine",
               status: "awaiting_doctor",
               claimedByDoctorId: null,
               createdAt: Date.now(),

@@ -62,7 +62,19 @@ class LMStudioProvider:
             if not has_json and msgs:
                 msgs[0]["content"] = msgs[0]["content"] + "\n\nRespond in valid JSON."
             payload["messages"] = msgs
-            payload["response_format"] = {"type": "json_object"}
+            # LM Studio rejects {"type": "json_object"} outright — it accepts
+            # only "json_schema" or "text" and 400s on anything else, which
+            # sent every structured call silently down the Groq fallback and
+            # quietly broke the offline claim. Send the real schema instead;
+            # it also pins the key names, which json_object never did.
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "structured_response",
+                    "strict": True,
+                    "schema": json_schema,
+                },
+            }
 
         # Use larger timeout (minimum 60s) for local GPU/CPU inference in LM Studio
         timeout = max(self.settings.edge_llm_timeout_ms / 1000.0, 60.0)

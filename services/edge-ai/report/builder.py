@@ -26,7 +26,38 @@ from voicebot.session import Session
 
 logger = logging.getLogger(__name__)
 
-SUMMARY_PROMPT = """You are Vaidhya. Summarize the intake into a succinct chief complaint (1 line) and a paragraph summary. Return valid JSON."""
+SUMMARY_PROMPT = """You are Vaidhya, a clinical intake summarizer for a rural telemedicine service.
+
+Return valid JSON with EXACTLY these two keys and no others:
+  "chief_complaint": one line, the presenting problem in clinical language.
+  "summary_text": one paragraph (3-5 sentences) for the reviewing doctor. State
+    symptom onset and duration, severity as the patient reported it, the
+    baseline vitals that matter, and any urgency flags that fired.
+
+Write the summary from the transcript and vitals you are given. Never answer
+with a placeholder such as "No summary." — if the transcript is thin, say what
+little is known and name what is still missing."""
+
+# Models routinely return the right prose under a different key. Map the ones
+# seen in practice back onto the contract rather than discarding a good summary
+# and falling through to the mechanical fallback.
+_CHIEF_KEYS = ("chief_complaint", "chiefComplaint", "chief complaint", "complaint")
+_SUMMARY_KEYS = (
+    "summary_text",
+    "summaryText",
+    "summary",
+    "paragraph_summary",
+    "paragraphSummary",
+    "assessment",
+)
+
+
+def _first_usable(parsed: dict, keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        value = parsed.get(key)
+        if not _is_placeholder(value):
+            return value.strip()  # type: ignore[union-attr]
+    return None
 
 
 def _fallback_report(session: Session) -> dict[str, str]:
@@ -99,22 +130,31 @@ async def build_and_publish(session: Session) -> IntakeCompleteResponse:
         "required": ["chief_complaint", "summary_text"]
     }
     
+    fallback = _fallback_report(session)
+    chief_complaint: str | None = None
+    summary_text: str | None = None
+
     try:
         resp_text = await llm.complete(SUMMARY_PROMPT, prompt, json_schema=schema)
         parsed = json.loads(resp_text)
-        if (
-            not isinstance(parsed, dict)
-            or _is_placeholder(parsed.get("chief_complaint"))
-            or _is_placeholder(parsed.get("summary_text"))
-        ):
-            raise ValueError("LLM returned an empty or placeholder summary")
-    except Exception as e:
-        logger.warning(f"Report summary generation fallback: {e}")
-        parsed = _fallback_report(session)
+        if not isinstance(parsed, dict):
+            raise ValueError("LLM returned JSON that is not an object")
 
-    fallback = _fallback_report(session)
-    chief_complaint = parsed.get("chief_complaint") or fallback["chief_complaint"]
-    summary_text = parsed.get("summary_text") or fallback["summary_text"]
+        chief_complaint = _first_usable(parsed, _CHIEF_KEYS)
+        summary_text = _first_usable(parsed, _SUMMARY_KEYS)
+
+        # Only the summary is worth failing over. A missing chief complaint is
+        # recoverable from the first patient turn; a missing summary is the
+        # whole point of the call.
+        if summary_text is None:
+            raise ValueError(
+                f"LLM returned no usable summary (keys: {sorted(parsed)})"
+            )
+    except Exception as e:
+        logger.warning("Report summary generation fell back to transcript: %s", e)
+
+    chief_complaint = chief_complaint or fallback["chief_complaint"]
+    summary_text = summary_text or fallback["summary_text"]
 
     # 2. Urgency
     flags = [UrgencyFlag(**f) for f in session.fired_flags] if session.fired_flags else []
