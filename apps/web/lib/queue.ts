@@ -45,14 +45,17 @@ const SELECT =
   "diagnostic_reports(chief_complaint, summary_text, urgency_tier)";
 
 function toVisit(row: VisitRow): Visit {
-  // A visit can technically carry more than one report; the latest is the one
-  // the doctor is being asked to act on.
   const report = row.diagnostic_reports?.[row.diagnostic_reports.length - 1];
   const tier = report?.urgency_tier?.tier;
 
+  const rawName = row.patients?.name;
+  const name = (rawName && rawName !== "Unknown patient") 
+    ? rawName 
+    : `Patient (${row.visit_id.replace(/^visit_/, "").slice(0, 10)})`;
+
   return {
     visitId: row.visit_id,
-    patientName: row.patients?.name ?? "Unknown patient",
+    patientName: name,
     chiefComplaint: report?.chief_complaint ?? "Intake in progress",
     summaryText: report?.summary_text ?? "",
     urgency:
@@ -105,11 +108,28 @@ export async function claimVisit(
 ): Promise<Visit | null> {
   if (!db) return claimMockCAS(visitId, doctorId);
 
+  // Check if visit is already claimed by this exact doctor
+  const { data: existingData } = await db
+    .from("visits")
+    .select(SELECT)
+    .eq("visit_id", visitId)
+    .maybeSingle();
+
+  if (existingData) {
+    const existingVisit = toVisit(existingData as unknown as VisitRow);
+    if (
+      existingVisit.claimedByDoctorId === doctorId ||
+      (existingVisit.status === "in_consult" && existingVisit.claimedByDoctorId === doctorId)
+    ) {
+      return existingVisit;
+    }
+  }
+
   const { data, error } = await db
     .from("visits")
     .update({ status: "in_consult", claimed_by_doctor_id: doctorId })
     .eq("visit_id", visitId)
-    .eq("status", "awaiting_doctor")
+    .or(`status.eq.awaiting_doctor,claimed_by_doctor_id.is.null,claimed_by_doctor_id.eq.${doctorId}`)
     .select(SELECT);
 
   if (error) {

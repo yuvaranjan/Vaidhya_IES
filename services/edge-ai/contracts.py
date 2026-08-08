@@ -25,6 +25,9 @@ class VitalReadingInput(BaseModel):
     type: str
     value_numeric: float | None = None
     value_text: str | None = None
+    # Temperature is entered as Fahrenheit in the nurse UI but stored and
+    # evaluated canonically as Celsius at the edge.
+    unit: Literal["celsius", "fahrenheit"] | None = None
 
 
 class UrgencyFlag(BaseModel):

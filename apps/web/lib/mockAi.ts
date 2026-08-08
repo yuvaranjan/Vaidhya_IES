@@ -101,16 +101,20 @@ export const mockAi = {
     await sleep(200);
     const fired: VitalsResponse["fired_flags"] = [];
     for (const r of req.readings) {
+      const temperatureC =
+        r.type === "temperature" && r.value_numeric != null && r.unit === "fahrenheit"
+          ? ((r.value_numeric - 32) * 5) / 9
+          : r.value_numeric;
       if (r.type === "spo2" && (r.value_numeric ?? 100) < 92) {
         fired.push({
           rule_id: "rule_spo2_low",
           description: `low SpO2 (${r.value_numeric}%)`,
         });
       }
-      if (r.type === "temperature" && (r.value_numeric ?? 0) >= 38.5) {
+      if (r.type === "temperature" && (temperatureC ?? 0) >= 38.5) {
         fired.push({
           rule_id: "rule_fever_high",
-          description: `high fever (${r.value_numeric}°C)`,
+          description: `high fever (${temperatureC?.toFixed(1)}°C)`,
         });
       }
     }

@@ -6,13 +6,15 @@ import { redirect } from "next/navigation";
 
 export async function fetchQueue() {
   const session = await getSession();
-  if (session.role !== "doctor") {
+  if (session.role !== "doctor" || !session.doctorId) {
     throw new Error("Unauthorized");
   }
 
-  // Return only awaiting visits
+  // Return visits awaiting doctor OR already claimed by this doctor
   const queue = await getQueue();
-  return queue.filter((v) => v.status === "awaiting_doctor");
+  return queue.filter(
+    (v) => v.status === "awaiting_doctor" || v.claimedByDoctorId === session.doctorId
+  );
 }
 
 export async function claimVisit(visitId: string) {
@@ -24,7 +26,7 @@ export async function claimVisit(visitId: string) {
   const visit = await claimVisitCAS(visitId, session.doctorId);
 
   if (!visit) {
-    // Simulated 409 error (Compare-and-Swap failure)
+    // Compare-and-Swap failure: Visit was claimed by another doctor
     return { error: "409: Already claimed by another doctor." };
   }
 
@@ -32,6 +34,5 @@ export async function claimVisit(visitId: string) {
   session.visitId = visitId;
   await session.save();
 
-  // Redirect to the consultation screen for this visit
-  redirect(`/doctor/consult/${visitId}`);
+  return { success: true, redirectUrl: `/doctor/consult/${visitId}` };
 }

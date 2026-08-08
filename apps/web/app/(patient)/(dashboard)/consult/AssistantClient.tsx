@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { edgeApi } from "@/lib/edgeApi";
 import type { Language, IntakeCompleteResponse, PendingFinding } from "@vaidhya/shared";
+import { WebRtcConsultHub } from "@/components/WebRtcConsultHub";
 import { 
   Sparkles, 
   Mic, 
@@ -416,6 +417,22 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
                 {intakeResult.urgency_tier.tier} ({intakeResult.urgency_tier.flag_count} Flags)
               </span>
             </div>
+
+            {intakeResult.urgency_tier.flags && intakeResult.urgency_tier.flags.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Fired Urgency Rules</p>
+                <div className="space-y-1">
+                  {intakeResult.urgency_tier.flags.map((f, i) => (
+                    <div
+                      key={i}
+                      className="text-xs px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg font-semibold"
+                    >
+                      ⚠️ {f.description}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-xs text-center text-muted-foreground font-medium pt-2">
@@ -458,6 +475,13 @@ export function AssistantClient({ visitId, patientId }: { visitId: string; patie
           </button>
         </div>
       </div>
+
+      {/* Live WebRTC Tele-Consultation Stream (When Intake is Completed / Active Session) */}
+      {intakeResult && (
+        <div className="p-4 bg-background border-b border-border">
+          <WebRtcConsultHub visitId={visitId} role="patient" userId={patientId} />
+        </div>
+      )}
 
       {/* Transcript Chat Body (Section 6: Chat Bubbles Spec) */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-background">

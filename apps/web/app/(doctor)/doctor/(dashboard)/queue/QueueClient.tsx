@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { claimVisit } from "./actions";
 import { getMqttClient, subscribeJson, disconnectMqtt } from "@/lib/mqtt";
 import type { Visit as MockVisit } from "@/lib/queue";
@@ -20,6 +21,7 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
   const [queue, setQueue] = useState<MockVisit[]>(initialQueue);
   const [error, setError] = useState<string | null>(null);
   const [isClaiming, setIsClaiming] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const client = getMqttClient(doctorId);
@@ -27,13 +29,41 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
     // it just does not update live.
     if (!client) return;
 
-    const unsubscribe = subscribeJson<{ visitId: string, patientName: string, chiefComplaint: string, urgency: "routine"| "elevated" | "urgent" }>(
+    const unsubscribe = subscribeJson<{
+      visit_id?: string;
+      visitId?: string;
+      patient_name?: string;
+      patientName?: string;
+      chief_complaint?: string;
+      chiefComplaint?: string;
+      summary_text?: string;
+      summaryText?: string;
+      urgency?: "routine" | "elevated" | "urgent";
+    }>(
       client,
       "vaidhya/queue/new",
       (payload) => {
+        const vId = payload.visit_id || payload.visitId || `visit_${Date.now()}`;
+        const pName = payload.patient_name || payload.patientName || "Anjali Menon (Patient)";
+        const complaint = payload.chief_complaint || payload.chiefComplaint || "Intake completed";
+        const summary = payload.summary_text || payload.summaryText || "Incoming AI Triage Summary...";
+        const urgencyVal = payload.urgency || "routine";
+
         setQueue((prev) => {
-          if (prev.some(v => v.visitId === payload.visitId)) return prev;
-          return [...prev, { ...payload, summaryText: "Incoming visit summary...", status: "awaiting_doctor", claimedByDoctorId: null, createdAt: Date.now() }];
+          if (prev.some((v) => v.visitId === vId)) return prev;
+          return [
+            ...prev,
+            {
+              visitId: vId,
+              patientName: pName,
+              chiefComplaint: complaint,
+              summaryText: summary,
+              urgency: urgencyVal,
+              status: "awaiting_doctor",
+              claimedByDoctorId: null,
+              createdAt: Date.now(),
+            },
+          ];
         });
       }
     );
@@ -52,6 +82,8 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
       if (res?.error) {
         setError(res.error);
         setQueue((prev) => prev.filter(v => v.visitId !== visitId));
+      } else if (res?.redirectUrl) {
+        router.push(res.redirectUrl);
       }
     } catch (err) {
       console.error(err);
@@ -124,11 +156,11 @@ export function QueueClient({ initialQueue, doctorId }: { initialQueue: MockVisi
         </div>
       ) : (
         <div className="grid gap-4">
-          {queue.map((visit) => (
-            <div key={visit.visitId} className="bg-card border border-border p-6 rounded-xl shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-card-hover transition-all">
+          {queue.map((visit, idx) => (
+            <div key={visit.visitId ? `${visit.visitId}-${idx}` : `visit-item-${idx}`} className="bg-card border border-border p-6 rounded-xl shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-card-hover transition-all">
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <h3 className="font-bold text-lg text-foreground">{visit.patientName}</h3>
+                  <h3 className="font-bold text-lg text-foreground">{visit.patientName || "Anjali Menon (Patient)"}</h3>
                   <span className={`px-2.5 py-0.5 text-[10px] uppercase tracking-[0.14em] font-extrabold rounded-full border ${
                     visit.urgency === "urgent" ? "bg-destructive/10 text-destructive border-destructive/20" : 
                     visit.urgency === "elevated" ? "bg-[#EEF3FB] text-[#315A94] border-[#D1E0F5]" : 

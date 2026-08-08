@@ -374,7 +374,7 @@ export function VoicebotClient({
     const respRate = parseInt(formData.get("respiratory_rate") as string || "16", 10);
 
     const readings: VitalReadingInput[] = [
-      { type: "temperature", value_numeric: temperature },
+      { type: "temperature", value_numeric: temperature, unit: "fahrenheit" },
       { type: "blood_pressure", value_text: bloodPressure },
       { type: "pulse", value_numeric: pulse },
       { type: "spo2", value_numeric: spo2 },
@@ -483,8 +483,8 @@ export function VoicebotClient({
         setPendingFinding(res.pending_finding);
       }
 
-      // Automatically send triage report to doctor right after the first voice input
-      if (!intakeResult || res.intake_done || res.next_action === "complete_intake") {
+      // Automatically send triage report to doctor when intake completed by bot
+      if (res.intake_done || res.next_action === "complete_intake") {
         await finalizeIntake();
       }
     } catch (err) {

@@ -5,6 +5,7 @@ import { getMqttClient, subscribeJson, publishJson, disconnectMqtt } from "@/lib
 import { topics, createDedupe } from "@vaidhya/shared";
 import type { Visit as MockVisit } from "@/lib/queue";
 import type { PatientToDoctorMessage, DoctorToPatientMessage } from "@vaidhya/shared";
+import { WebRtcConsultHub } from "@/components/WebRtcConsultHub";
 import { 
   FileText, 
   Send, 
@@ -14,7 +15,8 @@ import {
   Clock, 
   Sparkles,
   ArrowRight,
-  Activity
+  Activity,
+  HeartPulse
 } from "lucide-react";
 
 export function ConsultClient({
@@ -107,131 +109,155 @@ export function ConsultClient({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 p-4 sm:p-6 h-[88vh]">
-      {/* Left Pane: Diagnostic Report (Section 6: Card Spec) */}
-      <div className="w-full lg:w-1/3 flex flex-col bg-card border border-border rounded-xl shadow-soft p-6 overflow-y-auto space-y-5">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent mb-0.5">Clinical Evaluation</p>
-            <h2 className="text-xl font-bold text-foreground tracking-[-0.025em]">Diagnostic Report</h2>
-          </div>
-          <a 
-            href={`/doctor/prescribe/${visit.visitId}`}
-            className="bg-primary text-primary-foreground px-3.5 py-2 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity shadow-sm flex items-center gap-1.5 shrink-0"
-          >
-            <Pill className="w-3.5 h-3.5 text-accent" />
-            <span>Prescribe</span>
-          </a>
+    <div className="w-full max-w-[90rem] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 min-h-[88vh]">
+      
+      {/* LEFT SIDEBAR: Patient Record & Chief Complaint */}
+      <div className="lg:col-span-3 flex flex-col bg-card border border-border rounded-2xl shadow-soft p-5 overflow-y-auto space-y-5">
+        <div className="border-b border-border pb-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent mb-0.5">Clinical Profile</p>
+          <h2 className="text-lg font-extrabold text-foreground tracking-[-0.025em]">Patient Record</h2>
         </div>
 
-        {/* Patient Bio */}
-        <div className="p-3.5 bg-background border border-border rounded-xl space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1">
-            <User className="w-3 h-3 text-accent" /> Patient Record
-          </p>
-          <p className="text-base font-bold text-foreground">{visit.patientName}</p>
+        {/* Patient Identity */}
+        <div className="p-4 bg-background border border-border rounded-xl space-y-1.5 shadow-xs">
+          <div className="flex items-center gap-2 text-accent">
+            <User className="w-4 h-4" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Demographics</span>
+          </div>
+          <p className="text-lg font-extrabold text-foreground">{visit.patientName}</p>
           <p className="text-xs text-muted-foreground font-mono">Visit ID: {visit.visitId}</p>
         </div>
 
         {/* Chief Complaint */}
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Chief Complaint</p>
-          <p className="text-sm font-semibold text-foreground bg-background p-3 rounded-lg border border-border">
+          <p className="text-xs font-semibold text-foreground bg-background p-3.5 rounded-xl border border-border leading-relaxed">
             {visit.chiefComplaint}
           </p>
         </div>
 
-        {/* Diagnostic Summary */}
-        <div className="space-y-1 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-accent" /> AI Diagnostic Synthesis
-          </p>
-          <div className="bg-background p-4 rounded-xl border border-border text-xs text-foreground font-medium leading-relaxed">
-            {visit.summaryText}
-          </div>
-        </div>
-
-        {/* Urgency Tier */}
+        {/* Triage Urgency Level */}
         <div className="pt-2">
-          <div className={`p-3.5 rounded-xl border font-bold text-xs flex items-center justify-between ${
+          <div className={`p-3.5 rounded-xl border font-bold text-xs flex items-center justify-between shadow-xs ${
             visit.urgency === "urgent" ? "bg-destructive/10 border-destructive/20 text-destructive" :
             visit.urgency === "elevated" ? "bg-[#EEF3FB] border-[#D1E0F5] text-[#315A94]" :
             "bg-[#E5F5F3] border-[#C2E8E4] text-[#14736A]"
           }`}>
             <span className="flex items-center gap-1.5">
-              <Activity className="w-4 h-4" /> Triage Urgency Level
+              <Activity className="w-4 h-4" /> Triage Tier
             </span>
-            <span className="uppercase tracking-widest text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-white/80 shadow-sm">
+            <span className="uppercase tracking-widest text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-white/80 shadow-xs">
               {visit.urgency}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Right Pane: Live Doctor-Patient Chat */}
-      <div className="w-full lg:w-2/3 flex flex-col bg-card border border-border rounded-xl shadow-soft overflow-hidden">
+      {/* CENTER WORKSPACE: WebRTC Stream Hub & Real-time MQTT Chat */}
+      <div className="lg:col-span-6 flex flex-col space-y-4">
         
-        {/* Chat Header */}
-        <div className="bg-card px-6 py-4 border-b border-border flex justify-between items-center shadow-[0_2px_4px_rgba(0,0,0,0.02)] z-10">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent">Active Telehealth Session</p>
-            <h3 className="font-bold text-foreground text-base">Direct Clinical Chat</h3>
-          </div>
-          <span className="text-[10px] uppercase tracking-[0.14em] bg-accent/10 text-accent border border-accent/20 px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-            MQTT Real-time Sync
-          </span>
-        </div>
+        {/* WebRTC Video / Audio Consultation Stream */}
+        <WebRtcConsultHub visitId={visit.visitId} role="doctor" userId={doctorId} />
 
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-background">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-xs font-semibold space-y-2">
-              <ShieldCheck className="w-8 h-8 text-accent opacity-50" />
-              <p>Direct consultation channel open. Type a message below to begin.</p>
+        {/* Direct Doctor-Patient MQTT Chat */}
+        <div className="flex-1 flex flex-col bg-card border border-border rounded-2xl shadow-soft overflow-hidden min-h-[320px]">
+          
+          {/* Chat Header */}
+          <div className="bg-card px-5 py-3 border-b border-border flex justify-between items-center z-10">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">Active Telehealth Session</p>
+              <h3 className="font-bold text-foreground text-sm">Direct Patient Messaging Channel</h3>
             </div>
-          ) : (
-            messages.map((m) => (
-              <div key={m.message_id} className={`flex flex-col ${m.sender === "doctor" ? "items-end" : "items-start"}`}>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 px-1">
-                  {m.sender === "doctor" ? "Attending Doctor (You)" : visit.patientName}
-                </span>
-                <div className={`max-w-[76%] px-4 py-3 shadow-sm text-xs leading-relaxed ${
-                  m.sender === "doctor" 
-                    ? "bg-primary text-primary-foreground rounded-xl rounded-tr-sm font-semibold" 
-                    : "bg-card border border-border text-foreground rounded-xl rounded-tl-sm font-medium"
-                }`}>
-                  <p>{m.text}</p>
-                  <p className="text-[10px] mt-1.5 text-right font-mono opacity-70">
-                    {new Date(m.timestamp).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
+            <span className="text-[9px] uppercase tracking-[0.14em] bg-accent/10 text-accent border border-accent/20 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+              MQTT Sync
+            </span>
+          </div>
+
+          {/* Messages Feed */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-background">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-xs font-semibold space-y-2 py-8">
+                <ShieldCheck className="w-8 h-8 text-accent opacity-50" />
+                <p>Direct patient chat channel ready. Send a message below to communicate.</p>
               </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
+            ) : (
+              messages.map((m) => (
+                <div key={m.message_id} className={`flex flex-col ${m.sender === "doctor" ? "items-end" : "items-start"}`}>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5 px-1">
+                    {m.sender === "doctor" ? "Attending Doctor (You)" : visit.patientName}
+                  </span>
+                  <div className={`max-w-[80%] px-3.5 py-2.5 shadow-xs text-xs leading-relaxed ${
+                    m.sender === "doctor" 
+                      ? "bg-primary text-primary-foreground rounded-xl rounded-tr-xs font-semibold" 
+                      : "bg-card border border-border text-foreground rounded-xl rounded-tl-xs font-medium"
+                  }`}>
+                    <p>{m.text}</p>
+                    <p className="text-[9px] mt-1 text-right font-mono opacity-70">
+                      {new Date(m.timestamp).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Bar */}
+          <form onSubmit={handleSendMessage} className="p-3 bg-card border-t border-border flex gap-2">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Type advice or questions for the patient..."
+              className="flex-1 h-10 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <button
+              type="submit"
+              disabled={!inputValue.trim()}
+              className="bg-primary text-primary-foreground px-5 h-10 rounded-xl font-bold text-xs shadow-xs hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-1.5 shrink-0"
+            >
+              <span>Send</span>
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </form>
+
+        </div>
+      </div>
+
+      {/* RIGHT SIDEBAR: AI Diagnostic Synthesis & Prescribe Action */}
+      <div className="lg:col-span-3 flex flex-col bg-card border border-border rounded-2xl shadow-soft p-5 overflow-y-auto space-y-5">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent mb-0.5">Clinical Evaluation</p>
+            <h2 className="text-lg font-extrabold text-foreground tracking-[-0.025em]">Edge AI Synthesis</h2>
+          </div>
         </div>
 
-        {/* Input Bar */}
-        <form onSubmit={handleSendMessage} className="p-4 bg-card border-t border-border flex gap-3">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type clinical advice or questions for the patient..."
-            className="flex-1 h-11 px-4 rounded-lg border border-border bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            type="submit"
-            disabled={!inputValue.trim()}
-            className="bg-primary text-primary-foreground px-6 h-11 rounded-lg font-bold text-xs shadow-sm hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center gap-1.5 shrink-0"
-          >
-            <span>Send</span>
-            <Send className="w-3.5 h-3.5" />
-          </button>
-        </form>
+        {/* Diagnostic Summary */}
+        <div className="space-y-2 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-accent" /> AI Diagnostic Summary
+          </p>
+          <div className="bg-background p-4 rounded-xl border border-border text-xs text-foreground font-medium leading-relaxed shadow-xs">
+            {visit.summaryText}
+          </div>
+        </div>
 
+        {/* Action Button: Issue Digital Prescription */}
+        <div className="pt-3 border-t border-border">
+          <a 
+            href={`/doctor/prescribe/${visit.visitId}`}
+            className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-xl font-bold text-xs hover:opacity-90 transition-all shadow-md flex items-center justify-center gap-2 group"
+          >
+            <Pill className="w-4 h-4 text-accent group-hover:scale-110 transition-transform" />
+            <span>Issue Digital Prescription</span>
+            <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+          </a>
+        </div>
       </div>
+
     </div>
   );
 }
+

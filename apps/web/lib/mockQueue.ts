@@ -65,9 +65,14 @@ export const claimVisitCAS = (visitId: string, doctorId: string): MockVisit | nu
 
   const visit = queue[visitIndex];
   
-  // The Compare and Swap logic: Only update if it is currently 'awaiting_doctor'
-  if (visit.status !== "awaiting_doctor") {
-    return null; // Already claimed or completed! (Simulates the 409)
+  // If already claimed by THIS doctor, return it so doctor can enter consult
+  if (visit.claimedByDoctorId === doctorId || (visit.status === "in_consult" && visit.claimedByDoctorId === doctorId)) {
+    return visit;
+  }
+
+  // The Compare and Swap logic: Only update if it is currently 'awaiting_doctor' or unassigned
+  if (visit.status !== "awaiting_doctor" && visit.claimedByDoctorId !== null) {
+    return null; // Already claimed by another doctor!
   }
 
   // Swap
