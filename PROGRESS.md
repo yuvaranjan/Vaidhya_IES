@@ -4,13 +4,13 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T01:06:45Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T01:46:03Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Dedicated /voicebot patient route ships with a real record/playback client wired to /voice/turn. Not yet verified live with an actual recorded clip — that's still the next step. ⚠️ _2h behind_ | `agents/status/T1.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Dedicated /voicebot patient route ships with a real record/playback client wired to /voice/turn. Not yet verified live with an actual recorded clip — that's still the next step. | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _6h behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
@@ -195,6 +195,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+c26d6de · 08 Aug 06:36 · docs(t1): update status for voicebot route and orchestrator changes
 9a870e6 · 08 Aug 06:34 · feat(edge-ai, web): add voicebot page and wire real audio turn to consult
 9400a93 · 08 Aug 05:16 · fix(web): replace lucide-react barrel imports in Sidebar with inline SVG components to eliminate Turbopack HMR errors
 a893242 · 08 Aug 04:40 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
@@ -202,7 +203,6 @@ a893242 · 08 Aug 04:40 · Merge branch 'main' of https://github.com/yuvaranjan/
 c238359 · 08 Aug 04:31 · Fix doctor clarification questions and prescription auto-redirect
 2e04868 · 08 Aug 02:51 · fix(web): reconcile T2/T3 lanes onto real data, T2 UI preserved
 af200b3 · 08 Aug 02:49 · feat(edge-ai): implement /vitals rules engine, outbox sync, and MQTT relay
-6e28f36 · 08 Aug 04:20 · feat(analytics): overhaul regional disease surveillance dashboard UI with fallback generator
 ```
 
 ---
