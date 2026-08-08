@@ -4,13 +4,13 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T06:38:27Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T06:39:16Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
 | Lane | Owner | State | Working on | Status file |
 |---|---|---|---|---|
-| **T1** | Yuvaranjan | 🔵 in progress | Fixed Consult Specialist AI (step 8) — Groq had decommissioned the model the LangGraph agents called. Verified the API layer end to end; still need to click the actual button in the doctor UI before claiming the step. ⚠️ _behind_ | `agents/status/T1.md` |
+| **T1** | Yuvaranjan | 🔵 in progress | Merged T2's diagnostic-summary fix (premature finalizeIntake short-circuit) with the new camera-based vision analysis on /voicebot. Verified the merged file builds and typechecks clean; still need to click through both features live in the browser before claiming anything new. ⚠️ _behind_ | `agents/status/T1.md` |
 | **T2** | Yadav | 🔵 in progress | Dashboard Shell and Missing Pages complete. T2 Lane is 100% Finished! ⚠️ _behind_ | `agents/status/T2.md` |
 | **T3** | Antigravity | 🟢 done | Phase 1 (V1), Phase 2 (Pharmacist Portal), and Phase 3 (Home Delivery + History Timeline + Multi-Pattern Routing) complete and verified | `agents/status/T3.md` |
 | **T4** | unassigned | 🔵 in progress | Translation cache extended and analytics dashboard built end to end. Only Twilio (demo step 12) is left in this lane, deliberately deferred. ⚠️ _3h behind_ | `agents/status/T4.md` |
@@ -97,16 +97,17 @@ A step counts only if it can be performed live, right now, in front of a judge.
 - **`edgeApi.ts` surfaces backend-down errors distinctly** — `post`/`get` now catch fetch-level `TypeError`s and rethrow with an explicit "start the Python backend or set `NEXT_PUBLIC_USE_MOCK_AI=true`" message instead of an opaque `Failed to fetch`.
 - `edge_llm_model` default swapped to `medgemma`, `edge_llm_timeout_ms` cut from 20s to 5s so a stalled LM Studio falls through to Groq without a long hang. Not re-verified end to end against a running LM Studio since this change.
 - **Fixed Consult Specialist AI (demo step 8).** `multi_agent_specialist/nodes.py` was calling `llama3-70b-8192`, which Groq decommissioned — every Diagnostician / Treatment Planner / CMO call 400'd, which surfaced in the doctor UI as "Failed to fetch multi-agent specialist opinion." Swapped to `llama-3.3-70b-versatile` (confirmed live on the account via `/v1/models`). Verified: `POST :8002/consult` returns 200 with real diagnoses/treatment plan, and `POST /api/specialist` on the Next.js side returns 200 with `confidence: "high"`, `cmo_approved: true`. **Not** yet clicked through the actual doctor consult page in a browser — API-level only.
+- **Camera-based vision analysis on `/voicebot`.** Patient can capture a photo mid-consult; it's sent to a local LM Studio vision model, the description is appended to the transcript and shown under "Diagnostic Summary" alongside `intakeResult.summary_text`. Pulled T2's `origin/main` (3 commits: WebRTC teleconsultation hub, queue-key fix, the diagnostic-summary fix) into the same branch — `VoicebotClient.tsx` had non-overlapping edits so it merged clean, no hand-resolution needed. T2's fix removed the `!intakeResult ||` clause that made `finalizeIntake()` fire on the very first turn instead of only on real completion; that clause was upstream of and unrelated to the vision feature. Also untracked `services/edge-ai/edge.db-shm` / `edge.db-wal` (binary SQLite runtime files) to match T2's own `.gitignore` broadening — they were the only real merge conflicts, both non-source. Verified: merged `npm run build` and `tsc --noEmit` both clean, Python files `py_compile` clean. **Not** yet exercised live — no photo captured through a real camera against a running LM Studio, no browser click-through of the merged diagnostic summary.
 
 **In progress**
 
-- Nothing committed mid-flight. The `/voicebot` route above is code-complete but its record → STT → LLM → TTS round trip hasn't been exercised live in this session — see Next. Same caveat for the Specialist AI fix: API-verified, not yet clicked through the browser.
+- Nothing committed mid-flight. The `/voicebot` route above is code-complete but its record → STT → LLM → TTS round trip hasn't been exercised live in this session — see Next. Same caveat for the Specialist AI fix and the new vision feature: build/API-verified, not yet clicked through the browser.
 
 **Next**
 
 - _nothing planned — this lane needs a plan_
 
-Last self-reported update: 2026-08-08T09:15:00Z
+Last self-reported update: 2026-08-08T12:00:00Z
 
 ### T2 · Yadav · `apps/web`
 
@@ -197,6 +198,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
+330b681 · 08 Aug 12:08 · chore: regenerate PROGRESS.md after merging T2's diagnostic-summary fix
 a424466 · 08 Aug 12:06 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
 b7fd2a0 · 08 Aug 12:06 · feat(voicebot): add camera-based vision analysis to intake flow
 3a88c06 · 08 Aug 12:01 · feat: Add WebRTC teleconsultation hub and fix doctor queue claiming
@@ -204,7 +206,6 @@ b699404 · 08 Aug 08:55 · fix: resolve React key prop warning and improve patie
 9e1cfed · 08 Aug 08:22 · fix: add root endpoint / and stabilize session handling
 eb093b4 · 08 Aug 08:13 · fix index
 51e11ce · 08 Aug 08:11 · chore: save current working state
-8bb4f50 · 08 Aug 08:11 · feat: implement multi-agent medical specialist LangGraph API
 ```
 
 ---
