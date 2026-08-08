@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T01:59:06Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T02:03:18Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -195,7 +195,7 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
-a5d35eb · 08 Aug 07:26 · config: add vercel.json monorepo configuration
+265ad8d · 08 Aug 07:29 · config: add vercel.json monorepo configuration
 3970681 · 08 Aug 07:16 · feat: upgrade home page UI with doctor/patient launch cards and demo helpers
 c26d6de · 08 Aug 06:36 · docs(t1): update status for voicebot route and orchestrator changes
 9a870e6 · 08 Aug 06:34 · feat(edge-ai, web): add voicebot page and wire real audio turn to consult
