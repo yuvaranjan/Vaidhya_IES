@@ -64,6 +64,11 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Vaidhya edge-ai", version="0.1.0", lifespan=lifespan)
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "vaidhya-edge-ai"}
+
+
 # The patient browser is on the same laptop, on :3000.
 app.add_middleware(
     CORSMiddleware,

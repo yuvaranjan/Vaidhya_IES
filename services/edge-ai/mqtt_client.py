@@ -55,15 +55,16 @@ def _is_configured(url: str) -> bool:
 
 class EdgeMqtt:
     def __init__(self) -> None:
+        import uuid
         self.settings = get_settings()
-        self.client_id = edge_client_id(self.settings.jurisdiction_id)
+        self.client_id = f"{edge_client_id(self.settings.jurisdiction_id)}-{uuid.uuid4().hex[:6]}"
         self.connected = False
         self._loop: asyncio.AbstractEventLoop | None = None
 
         self.client = paho.Client(
             paho.CallbackAPIVersion.VERSION2,
             client_id=self.client_id,
-            clean_session=False,
+            clean_session=True,
             transport="websockets",
         )
         self.client.on_connect = self._on_connect
