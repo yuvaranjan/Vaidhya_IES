@@ -4,7 +4,7 @@
      Edit your own agents/status/<lane>.md and run `npm run progress`.
      Merge conflict here? Take either side and regenerate. -->
 
-Generated 2026-08-08T02:43:28Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
+Generated 2026-08-08T02:52:34Z from `agents/status/*.md` · protocol in [agents/README.md](agents/README.md)
 
 ## Right now
 
@@ -195,14 +195,14 @@ Last self-reported update: 2026-08-08T01:30:00Z
 ## Recent commits
 
 ```
-3a1c4dd · 08 Aug 08:11 · chore: save current working state
-4d27c1c · 08 Aug 08:11 · feat: implement multi-agent medical specialist LangGraph API
-c26d6de · 08 Aug 06:36 · docs(t1): update status for voicebot route and orchestrator changes
-9a870e6 · 08 Aug 06:34 · feat(edge-ai, web): add voicebot page and wire real audio turn to consult
-9400a93 · 08 Aug 05:16 · fix(web): replace lucide-react barrel imports in Sidebar with inline SVG components to eliminate Turbopack HMR errors
-a893242 · 08 Aug 04:40 · Merge branch 'main' of https://github.com/yuvaranjan/Vaidhya_IES
-654b69c · 08 Aug 04:35 · feat(analytics): add Predictive ML disease outbreak forecasting engine with 4W horizon projections
-c238359 · 08 Aug 04:31 · Fix doctor clarification questions and prescription auto-redirect
+eb093b4 · 08 Aug 08:13 · fix index
+51e11ce · 08 Aug 08:11 · chore: save current working state
+8bb4f50 · 08 Aug 08:11 · feat: implement multi-agent medical specialist LangGraph API
+0eb16cb · 08 Aug 08:13 · fix: restore sessions from SQLite and auto-initialize missing sessions on intake complete
+d99596e · 08 Aug 07:54 · fix: add root endpoint / and resolve MQTT client_id collision disconnect loop
+fa0c7f8 · 08 Aug 07:33 · deploy: add Dockerfile and Render blueprint for Python Edge AI backend
+265ad8d · 08 Aug 07:29 · config: add vercel.json monorepo configuration
+3970681 · 08 Aug 07:16 · feat: upgrade home page UI with doctor/patient launch cards and demo helpers
 ```
 
 ---
