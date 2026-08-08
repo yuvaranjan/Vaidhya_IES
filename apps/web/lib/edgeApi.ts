@@ -43,9 +43,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     }
     return res.json() as Promise<T>;
   } catch (err: any) {
-    if (err.name === "TypeError" || err.message?.includes("failed")) {
-      throw new Error(`Edge AI service unavailable at ${BASE}. Please start the Python backend on port 8000 or set NEXT_PUBLIC_USE_MOCK_AI=true in apps/web/.env.local`);
-    }
+    console.warn(`[edgeApi] POST ${path} unavailable at ${BASE}:`, err.message);
     throw err;
   }
 }
@@ -60,9 +58,7 @@ async function get<T>(path: string): Promise<T> {
     }
     return res.json() as Promise<T>;
   } catch (err: any) {
-    if (err.name === "TypeError" || err.message?.includes("failed")) {
-      throw new Error(`Edge AI service unavailable at ${BASE}. Please start the Python backend on port 8000 or set NEXT_PUBLIC_USE_MOCK_AI=true in apps/web/.env.local`);
-    }
+    console.warn(`[edgeApi] GET ${path} unavailable at ${BASE}:`, err.message);
     throw err;
   }
 }

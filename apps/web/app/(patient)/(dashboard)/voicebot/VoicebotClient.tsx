@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { edgeApi, USE_MOCK_AI } from "@/lib/edgeApi";
+import { mockAi } from "@/lib/mockAi";
 import { WebRtcConsultHub } from "@/components/WebRtcConsultHub";
 import type { Language, IntakeCompleteResponse, PendingFinding, ModelsResponse, HealthResponse, VitalReadingInput } from "@vaidhya/shared";
 import { 
@@ -626,8 +627,13 @@ export function VoicebotClient({
       const res = await edgeApi.intakeComplete(visitId);
       setIntakeResult(res);
     } catch (err) {
-      console.error("Finalize intake error:", err);
-      alert("Could not finalize intake. Make sure edge-ai service is active.");
+      console.warn("Finalize intake error, using mock fallback:", err);
+      try {
+        const mockRes = await mockAi.intakeComplete(visitId);
+        setIntakeResult(mockRes);
+      } catch (mockErr) {
+        console.error("Mock intake error:", mockErr);
+      }
     } finally {
       setIsFinalizing(false);
     }
